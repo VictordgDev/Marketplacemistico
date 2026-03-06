@@ -1,8 +1,8 @@
-import { query } from '../db.js';
-import { sanitizeString, sanitizeInteger } from '../sanitize.js';
-import { sendSuccess, sendError } from '../response.js';
-import { withCors } from '../middleware.js';
-import { requireAuth } from '../auth-middleware.js';
+import { query } from '../../db.js';
+import { sanitizeString, sanitizeInteger } from '../../sanitize.js';
+import { sendSuccess, sendError } from '../../response.js';
+import { withCors } from '../../middleware.js';
+import { requireAuth } from '../../auth-middleware.js';
 
 async function handler(req, res) {
   if (req.method === 'GET') {
