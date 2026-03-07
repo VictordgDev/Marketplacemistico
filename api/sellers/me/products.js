@@ -1,0 +1,51 @@
+import { query } from '../../db.js';
+import { sanitizeInteger } from '../../sanitize.js';
+import { sendSuccess, sendError } from '../../response.js';
+import { withCors } from '../../middleware.js';
+import { requireVendedor } from '../../auth-middleware.js';
+
+async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return sendError(res, 'METHOD_NOT_ALLOWED', 'Método não permitido', 405);
+  }
+
+  try {
+    const sellers = await query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+    if (sellers.length === 0) {
+      return sendError(res, 'NOT_FOUND', 'Vendedor não encontrado', 404);
+    }
+    const sellerId = sellers[0].id;
+
+    const { page: rawPage, limit: rawLimit } = req.query;
+    const page = Math.max(1, sanitizeInteger(rawPage) || 1);
+    const limit = Math.min(100, Math.max(1, sanitizeInteger(rawLimit) || 20));
+    const offset = (page - 1) * limit;
+
+    const countResult = await query(
+      'SELECT COUNT(*) as total FROM products WHERE seller_id = $1',
+      [sellerId]
+    );
+    const total = parseInt(countResult[0].total, 10);
+
+    const products = await query(
+      `SELECT * FROM products WHERE seller_id = $1
+       ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [sellerId, limit, offset]
+    );
+
+    return sendSuccess(res, {
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos do vendedor:', error);
+    return sendError(res, 'INTERNAL_ERROR', 'Erro ao buscar produtos', 500);
+  }
+}
+
+export default withCors(requireVendedor(handler));

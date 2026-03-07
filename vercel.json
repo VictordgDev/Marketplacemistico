@@ -1,13 +1,15 @@
 {
   "version": 2,
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
-    }
+    { "source": "/api/products/:id/publish", "destination": "/api/products/[id]/publish" },
+    { "source": "/api/products/:id", "destination": "/api/products/[id]" },
+    { "source": "/api/users/addresses/:id", "destination": "/api/users/addresses/[id]" },
+    { "source": "/api/sellers/me/products", "destination": "/api/sellers/me/products" },
+    { "source": "/api/sellers/me/orders", "destination": "/api/sellers/me/orders" },
+    { "source": "/api/sellers/:id", "destination": "/api/sellers/[id]" },
+    { "source": "/api/orders/:id/status", "destination": "/api/orders/[id]/status" },
+    { "source": "/api/orders/:id", "destination": "/api/orders/[id]" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }

@@ -1,60 +1,67 @@
 import { query } from '../db.js';
-import jwt from 'jsonwebtoken';
+import { sanitizeString, sanitizeEmail, sanitizePhone } from '../sanitize.js';
+import { sendSuccess, sendError } from '../response.js';
+import { withCors } from '../middleware.js';
+import { requireAuth } from '../auth-middleware.js';
 
-function verifyToken(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
-  
-  const token = authHeader.replace('Bearer ', '');
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'secret_padrao_mude_isso');
-  } catch {
-    return null;
-  }
-}
-
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  const user = verifyToken(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Não autenticado' });
-  }
-
+async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const users = await query(
-        `SELECT u.*, s.id as seller_id, s.nome_loja, s.categoria, s.descricao_loja
+        `SELECT u.id, u.tipo, u.nome, u.email, u.telefone, u.cpf_cnpj, u.tipo_documento,
+                u.created_at, u.updated_at,
+                s.id as seller_id, s.nome_loja, s.categoria, s.descricao_loja
          FROM users u
          LEFT JOIN sellers s ON u.id = s.user_id
          WHERE u.id = $1`,
-        [user.id]
+        [req.user.id]
       );
 
       if (users.length === 0) {
-        return res.status(404).json({ error: 'Usuário não encontrado' });
+        return sendError(res, 'NOT_FOUND', 'Usuário não encontrado', 404);
       }
 
-      const userData = users[0];
-      delete userData.senha_hash;
-
-      return res.status(200).json({
-        success: true,
-        user: userData
-      });
-
+      return sendSuccess(res, { user: users[0] });
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
-      return res.status(500).json({ error: 'Erro ao buscar perfil' });
+      return sendError(res, 'INTERNAL_ERROR', 'Erro ao buscar perfil', 500);
     }
   }
 
-  return res.status(405).json({ error: 'Método não permitido' });
+  if (req.method === 'PUT') {
+    try {
+      let { nome, telefone } = req.body;
+
+      nome = sanitizeString(nome);
+      telefone = sanitizePhone(telefone);
+
+      if (!nome) {
+        return sendError(res, 'VALIDATION_ERROR', 'Nome é obrigatório');
+      }
+
+      await query(
+        'UPDATE users SET nome = $1, telefone = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+        [nome, telefone || null, req.user.id]
+      );
+
+      const updated = await query(
+        `SELECT u.id, u.tipo, u.nome, u.email, u.telefone, u.cpf_cnpj, u.tipo_documento,
+                u.created_at, u.updated_at,
+                s.id as seller_id, s.nome_loja, s.categoria, s.descricao_loja
+         FROM users u
+         LEFT JOIN sellers s ON u.id = s.user_id
+         WHERE u.id = $1`,
+        [req.user.id]
+      );
+
+      return sendSuccess(res, { user: updated[0] });
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      return sendError(res, 'INTERNAL_ERROR', 'Erro ao atualizar perfil', 500);
+    }
+  }
+
+  return sendError(res, 'METHOD_NOT_ALLOWED', 'Método não permitido', 405);
 }
+
+export default withCors(requireAuth(handler));

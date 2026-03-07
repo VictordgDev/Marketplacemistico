@@ -48,11 +48,22 @@ async function apiRequest(endpoint, options = {}) {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Erro na requisição');
+        if (response.status === 401) {
+            // Token inválido – limpar sessão e redirecionar para login
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            showPage('login');
+            throw new Error((data.error && data.error.message) || 'Sessão expirada. Faça login novamente.');
         }
 
-        return data;
+        if (!response.ok) {
+            throw new Error((data.error && data.error.message) || data.error || 'Erro na requisição');
+        }
+
+        // Return the unwrapped payload from the standardized envelope
+        return data.data !== undefined ? data.data : data;
     } catch (error) {
         console.error('API Request Error:', error);
         throw error;
@@ -767,25 +778,27 @@ async function login(event) {
 
         if (!response.ok) {
             console.error('❌ Erro na resposta:', data.error);
-            throw new Error(data.error || 'Erro ao fazer login');
+            throw new Error((data.error && data.error.message) || data.error || 'Erro ao fazer login');
         }
 
         if (!data.success) {
             console.error('❌ Login falhou:', data);
-            throw new Error(data.error || 'Login falhou');
+            throw new Error((data.error && data.error.message) || data.error || 'Login falhou');
         }
 
-        if (!data.token) {
+        const payload = data.data || data;
+
+        if (!payload.token) {
             console.error('❌ Token não recebido:', data);
             throw new Error('Token não recebido do servidor');
         }
 
         console.log('✅ Login bem-sucedido!');
-        console.log('🎫 Token:', data.token.substring(0, 20) + '...');
-        console.log('👤 User:', data.user);
+        console.log('🎫 Token:', payload.token.substring(0, 20) + '...');
+        console.log('👤 User:', payload.user);
 
-        authToken = data.token;
-        currentUser = data.user;
+        authToken = payload.token;
+        currentUser = payload.user;
         
         // Set initial activeMode based on user type
         if (currentUser.tipo === 'vendedor') {
@@ -1316,34 +1329,28 @@ async function upgradeToVendor(event) {
             })
         });
         
-        if (data.success) {
-            // Update current user data (senha_hash already removed by API)
-            currentUser = data.user;
-            
-            // Update auth token with new JWT that contains updated user type
-            if (data.token) {
-                authToken = data.token;
-                localStorage.setItem('authToken', authToken);
-            }
-            
-            // Set activeMode to vendedor since they just became a vendor
-            activeMode = 'vendedor';
-            
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            localStorage.setItem('activeMode', activeMode);
-            
-            showMessage('vendor-registration-messages', 'Parabéns! Você agora é um vendedor!', false);
-            
-            // Navigate to vendor dashboard after a brief delay
-            setTimeout(() => {
-                updateNavbar();
-                showPage('dashboard-vendedor');
-                loadSellerProducts();
-                populateSellerDashboard();
-            }, 2000);
-        } else {
-            throw new Error(data.error || 'Erro ao se tornar vendedor');
+        // apiRequest returns the unwrapped payload; errors are thrown
+        currentUser = data.user;
+        
+        if (data.token) {
+            authToken = data.token;
+            localStorage.setItem('authToken', authToken);
         }
+        
+        activeMode = 'vendedor';
+        
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        localStorage.setItem('activeMode', activeMode);
+        
+        showMessage('vendor-registration-messages', 'Parabéns! Você agora é um vendedor!', false);
+        
+        // Navigate to vendor dashboard after a brief delay
+        setTimeout(() => {
+            updateNavbar();
+            showPage('dashboard-vendedor');
+            loadSellerProducts();
+            populateSellerDashboard();
+            }, 2000);
     } catch (error) {
         console.error('Erro ao se tornar vendedor:', error);
         showMessage('vendor-registration-messages', error.message, true);
