@@ -654,13 +654,11 @@ function showMessage(containerId, message, isError = false) {
 
 // ==================== AUTENTICAÇÃO ====================
 function handleGoogleRegister() {
-    // Future implementation: Google OAuth registration
-    alert('Login com Google em desenvolvimento. Por favor, use o formulário de registro tradicional.');
+    window.location.href = '/api/auth/google';
 }
 
 function handleGoogleLogin() {
-    // Future implementation: Google OAuth login
-    alert('Login com Google em desenvolvimento. Por favor, use o formulário de login tradicional.');
+    window.location.href = '/api/auth/google';
 }
 
 async function register(event) {
@@ -1538,7 +1536,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('currentUser');
     const savedActiveMode = localStorage.getItem('activeMode');
     
-    if (savedToken && savedUser) {
+    // Check for token and user in URL (from Google callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const userFromUrl = urlParams.get('user');
+
+    if (tokenFromUrl && userFromUrl) {
+        console.log('🎫 Token e usuário encontrados na URL. Salvando sessão...');
+        try {
+            authToken = tokenFromUrl;
+            currentUser = JSON.parse(decodeURIComponent(userFromUrl));
+            activeMode = currentUser.tipo === 'vendedor' ? 'vendedor' : 'cliente';
+
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            localStorage.setItem('activeMode', activeMode);
+
+            // Clean URL
+            window.history.replaceState({}, document.title, "/");
+            console.log('✅ Sessão do Google salva!');
+        } catch (e) {
+            console.error('Erro ao processar dados de login do Google:', e);
+        }
+    }
+
+    if (savedToken && savedUser && !tokenFromUrl) {
         console.log('📝 Restaurando sessão do localStorage...');
         authToken = savedToken;
         currentUser = JSON.parse(savedUser);
@@ -1554,6 +1576,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('✅ Sessão restaurada:', currentUser);
         console.log('📍 activeMode restaurado:', activeMode);
+        updateNavbar();
+    } else if (tokenFromUrl) {
+        // Just updated state from URL, update navbar
         updateNavbar();
     } else {
         console.log('ℹ️ Sem sessão salva');
