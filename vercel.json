@@ -1,6 +1,9 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/auth/login", "destination": "/api/auth/login.js" },
+    { "source": "/api/auth/register", "destination": "/api/auth/register.js" },
+    { "source": "/api/users/upgrade-to-vendor", "destination": "/api/users/upgrade-to-vendor.js" },
     { "source": "/api/auth/google", "destination": "/api/auth/google.js" },
     { "source": "/api/auth/callback/google", "destination": "/api/auth/callback/google.js" },
     { "source": "/api/products/:id/publish", "destination": "/api/products/[id]/publish.js" },

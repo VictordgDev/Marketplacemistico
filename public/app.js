@@ -49,6 +49,14 @@ window.cancelAddProduct = cancelAddProduct;
 window.deleteProduct = deleteProduct;
 window.formatCep = formatCep;
 window.validateEditCpfCnpjField = validateEditCpfCnpjField;
+window.filterProducts = filterProducts;
+window.goToLogin = goToLogin;
+window.goToRegister = goToRegister;
+window.goToVendorRegistration = goToVendorRegistration;
+window.showBecomeVendorModal = showBecomeVendorModal;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.closeBecomeVendorModal = closeBecomeVendorModal;
 
 const estadosBrasileiros = [
     { code: 'AC', name: 'Acre' }, { code: 'AL', name: 'Alagoas' }, { code: 'AP', name: 'Amapá' },
