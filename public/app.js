@@ -763,14 +763,38 @@ async function register(event) {
     }
 
     try {
-        await apiRequest('/auth/register', {
+        const data = await apiRequest('/auth/register', {
             method: 'POST',
             body: JSON.stringify(userData)
         });
 
-        showMessage('registration-messages', 'Cadastro realizado com sucesso! Faça login para continuar.');
+        showMessage('registration-messages', 'Cadastro realizado com sucesso! Entrando na sua conta...');
+
+        // Auto-login logic
+        authToken = data.token;
+        currentUser = data.user;
+
+        // Map backend names to frontend expected names if necessary
+        if (currentUser.nomeLoja && !currentUser.nome_loja) {
+            currentUser.nome_loja = currentUser.nomeLoja;
+        }
+        if (currentUser.descricaoLoja && !currentUser.descricao_loja) {
+            currentUser.descricao_loja = currentUser.descricaoLoja;
+        }
+
+        if (currentUser.tipo === 'vendedor') {
+            activeMode = 'vendedor';
+        } else {
+            activeMode = 'cliente';
+        }
+
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        localStorage.setItem('activeMode', activeMode);
+
         setTimeout(() => {
-            showPage('login');
+            updateNavbar();
+            navigateHome();
             document.getElementById('registrationForm').reset();
         }, 2000);
 
@@ -851,6 +875,14 @@ async function login(event) {
 
         authToken = payload.token;
         currentUser = payload.user;
+
+        // Map backend names to frontend expected names if necessary
+        if (currentUser.nomeLoja && !currentUser.nome_loja) {
+            currentUser.nome_loja = currentUser.nomeLoja;
+        }
+        if (currentUser.descricaoLoja && !currentUser.descricao_loja) {
+            currentUser.descricao_loja = currentUser.descricaoLoja;
+        }
         
         // Set initial activeMode based on user type
         if (currentUser.tipo === 'vendedor') {
@@ -1032,7 +1064,7 @@ function updateNavbar() {
     }
 }
 
-function renderProducts() {
+function renderProducts(productsToRender = products) {
     const container = document.getElementById('products-grid');
     
     if (!container) {
@@ -1040,12 +1072,12 @@ function renderProducts() {
         return;
     }
     
-    if (products.length === 0) {
+    if (productsToRender.length === 0) {
         container.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">Nenhum produto encontrado</p>';
         return;
     }
 
-    container.innerHTML = products.map(product => `
+    container.innerHTML = productsToRender.map(product => `
         <div class="product-card">
             <div class="product-image">
                 ${getProductImageHTML(product)}
@@ -1240,6 +1272,30 @@ function filterByCategory(categoria) {
     
     currentFilter = categoria;
     loadProducts(categoria);
+}
+
+function filterProducts() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const noProductsMsg = document.getElementById('no-products');
+
+    if (!searchTerm) {
+        if (noProductsMsg) noProductsMsg.style.display = 'none';
+        renderProducts(products);
+        return;
+    }
+
+    const filtered = products.filter(product =>
+        product.nome.toLowerCase().includes(searchTerm) ||
+        (product.descricao && product.descricao.toLowerCase().includes(searchTerm)) ||
+        (product.nome_loja && product.nome_loja.toLowerCase().includes(searchTerm)) ||
+        (product.categoria && product.categoria.toLowerCase().includes(searchTerm))
+    );
+
+    if (noProductsMsg) {
+        noProductsMsg.style.display = filtered.length === 0 ? 'block' : 'none';
+    }
+
+    renderProducts(filtered);
 }
 
 // ==================== MOBILE ====================

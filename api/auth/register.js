@@ -1,5 +1,6 @@
 import { query } from '../db.js';
 import bcryptjs from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { sanitizeString, sanitizeEmail, sanitizePhone, sanitizeCpfCnpj } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
@@ -91,15 +92,27 @@ async function handler(req, res) {
     }
 
     console.log('🎉 Registro concluído com sucesso!');
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, tipo: user.tipo },
+      process.env.JWT_SECRET || 'secret_padrao_mude_isso',
+      { expiresIn: '7d' }
+    );
+
     return sendSuccess(res, {
       message: 'Usuário criado com sucesso',
+      token,
       user: {
         id: user.id,
         tipo: user.tipo,
         nome: user.nome,
         email: user.email,
         telefone: user.telefone,
-        nomeLoja: user.nomeLoja
+        cpf_cnpj: user.cpf_cnpj,
+        seller_id: user.seller_id,
+        nomeLoja: user.nomeLoja,
+        categoria: user.categoria,
+        descricaoLoja: user.descricao_loja
       }
     }, 201);
   } catch (error) {

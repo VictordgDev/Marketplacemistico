@@ -12,7 +12,11 @@ async function handler(req, res) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://quintalmistico.com.br/api/auth/callback/google';
+
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const host = req.headers['host'];
+  const defaultRedirectUri = `${protocol}://${host}/api/auth/callback/google`;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultRedirectUri;
 
   try {
     // 1. Trocar o código pelo token de acesso
@@ -77,7 +81,8 @@ async function handler(req, res) {
 
     // 5. Redirecionar de volta para o frontend com o token
     // Como é um monorepo e o front está na /public servido na root
-    const frontendUrl = process.env.FRONTEND_URL || 'https://quintalmistico.com.br';
+    const defaultFrontendUrl = `${protocol}://${host}`;
+    const frontendUrl = process.env.FRONTEND_URL || defaultFrontendUrl;
 
     // Pegar informações extras para o frontend (vendedor)
     let sellerInfo = {};

@@ -7,7 +7,12 @@ async function handler(req, res) {
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://quintalmistico.com.br/api/auth/callback/google';
+
+  // Tornar a URL de redirecionamento dinâmica para suportar ambientes de teste/preview
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const host = req.headers['host'];
+  const defaultRedirectUri = `${protocol}://${host}/api/auth/callback/google`;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultRedirectUri;
 
   if (!clientId) {
     return sendError(res, 'CONFIG_ERROR', 'GOOGLE_CLIENT_ID não configurado');
