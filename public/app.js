@@ -1,8 +1,62 @@
+import { addToCart as cartAdd, removeFromCart as cartRemove, calculateSubtotal, formatCurrency } from './cart-logic.js';
+
 // ==================== CONFIGURAÇÃO INICIAL ====================
 let currentUser = null;
 let authToken = null;
 const API_BASE = '/api';
 let activeMode = null; // 'cliente' or 'vendedor'
+
+// Expose functions to window for onclick handlers
+window.navigateHome = navigateHome;
+window.showPage = showPage;
+window.toggleUserMode = toggleUserMode;
+window.showCart = showCart;
+window.logout = logout;
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+window.navigateHomeFromSidebar = navigateHomeFromSidebar;
+window.navigateFromSidebar = navigateFromSidebar;
+window.logoutFromSidebar = logoutFromSidebar;
+window.closeLoginModal = closeLoginModal;
+window.goToLogin = goToLogin;
+window.goToRegister = goToRegister;
+window.closeBecomeVendorModal = closeBecomeVendorModal;
+window.goToVendorRegistration = goToVendorRegistration;
+window.setUserTypeAndRegister = setUserTypeAndRegister;
+window.showDashboardSection = showDashboardSection;
+window.enterClienteEditMode = enterClienteEditMode;
+window.cancelClienteEditMode = cancelClienteEditMode;
+window.toggleSellerFields = toggleSellerFields;
+window.validateEmail = validateEmail;
+window.validatePassword = validatePassword;
+window.validatePasswordMatch = validatePasswordMatch;
+window.formatCpfCnpj = formatCpfCnpj;
+window.validateCpfCnpjField = validateCpfCnpjField;
+window.handleGoogleRegister = handleGoogleRegister;
+window.handleGoogleLogin = handleGoogleLogin;
+window.cancelVendorRegistration = cancelVendorRegistration;
+window.showBecomeVendorModal = showBecomeVendorModal;
+window.enterEditMode = enterEditMode;
+window.cancelEditMode = cancelEditMode;
+window.showMyStore = showMyStore;
+window.contactSeller = contactSeller;
+window.filterStoreByCategory = filterStoreByCategory;
+window.filterByCategory = filterByCategory;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.updateCartQuantity = updateCartQuantity;
+window.cancelAddProduct = cancelAddProduct;
+window.deleteProduct = deleteProduct;
+window.formatCep = formatCep;
+window.validateEditCpfCnpjField = validateEditCpfCnpjField;
+window.filterProducts = filterProducts;
+window.goToLogin = goToLogin;
+window.goToRegister = goToRegister;
+window.goToVendorRegistration = goToVendorRegistration;
+window.showBecomeVendorModal = showBecomeVendorModal;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.closeBecomeVendorModal = closeBecomeVendorModal;
 
 const estadosBrasileiros = [
     { code: 'AC', name: 'Acre' }, { code: 'AL', name: 'Alagoas' }, { code: 'AP', name: 'Amapá' },
@@ -1074,19 +1128,14 @@ function addToCart(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    const existingItem = shoppingCart.find(item => item.id === productId);
-    if (existingItem) {
-        existingItem.quantidade++;
-    } else {
-        shoppingCart.push({ ...product, quantidade: 1 });
-    }
+    shoppingCart = cartAdd(shoppingCart, product);
 
     updateCartBadge();
     alert('Produto adicionado ao carrinho!');
 }
 
 function removeFromCart(productId) {
-    shoppingCart = shoppingCart.filter(item => item.id !== productId);
+    shoppingCart = cartRemove(shoppingCart, productId);
     updateCartBadge();
     renderCart();
 }
@@ -1148,8 +1197,8 @@ function renderCart() {
         return;
     }
 
-    const subtotal = shoppingCart.reduce((sum, item) => sum + ((parseFloat(item.preco) || 0) * item.quantidade), 0);
-    subtotalElement.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+    const subtotal = calculateSubtotal(shoppingCart);
+    subtotalElement.textContent = formatCurrency(subtotal);
 
     container.innerHTML = shoppingCart.map(item => `
         <div class="cart-item">

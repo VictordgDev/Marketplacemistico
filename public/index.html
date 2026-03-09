@@ -883,6 +883,10 @@
         </div>
     </main>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
+    <script>
+        // Polyfill or global mapping if needed, but since we're using modules
+        // and onclick handlers, we might need to expose some functions to window
+    </script>
 </body>
 </html>

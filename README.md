@@ -105,6 +105,26 @@ npm run dev
 
 6. Acesse a aplicação em `http://localhost:3000`
 
+## 🧪 Testes (TDD)
+
+O projeto utiliza **Jest** para testes unitários e de integração. Os testes seguem a filosofia TDD, garantindo que as regras de negócio sejam validadas antes e durante o desenvolvimento.
+
+### Como executar os testes
+```bash
+# Executar todos os testes
+npm test
+
+# Executar um arquivo de teste específico
+npm test -- tests/unit/sanitize.test.js
+
+# Executar testes em modo watch (se estiver em ambiente local)
+npx jest --watch
+```
+
+### Cobertura de Testes Atual
+- **Unitários**: Validação de inputs (CPF/CNPJ, e-mail, senhas) e lógica do carrinho de compras.
+- **Integração**: Fluxo de registro de usuários e criação de pedidos com validação de estoque e permissões.
+
 ## 📁 Estrutura do Projeto
 
 ```
