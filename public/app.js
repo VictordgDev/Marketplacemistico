@@ -100,7 +100,26 @@ async function apiRequest(endpoint, options = {}) {
             headers
         });
 
-        const data = await response.json();
+        let data;
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+            try {
+                data = await response.json();
+            } catch (e) {
+                console.error('Erro ao processar JSON:', e);
+                throw new Error('Resposta do servidor inválida');
+            }
+        } else {
+            // Not JSON (could be a 404 HTML page from Vercel)
+            const text = await response.text();
+            console.error('Resposta não-JSON recebida:', text);
+
+            if (response.status === 404) {
+                throw new Error('A API não foi encontrada. Verifique se o diretório raiz na Vercel está correto.');
+            }
+            throw new Error(`Erro no servidor (${response.status})`);
+        }
 
         if (response.status === 401) {
             // Token inválido – limpar sessão e redirecionar para login
@@ -832,38 +851,12 @@ async function login(event) {
     }
 
     try {
-        console.log('📡 Fazendo requisição para /api/auth/login...');
-        
-        const url = '/api/auth/login';
-        const options = {
+        const data = await apiRequest('/auth/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ email, senha })
-        };
+        });
 
-        console.log('📤 URL:', url);
-
-        const response = await fetch(url, options);
-
-        console.log('📨 Response status:', response.status);
-        console.log('📨 Response ok:', response.ok);
-
-        const data = await response.json();
-        console.log('📦 Response data:', data);
-
-        if (!response.ok) {
-            console.error('❌ Erro na resposta:', data.error);
-            throw new Error((data.error && data.error.message) || data.error || 'Erro ao fazer login');
-        }
-
-        if (!data.success) {
-            console.error('❌ Login falhou:', data);
-            throw new Error((data.error && data.error.message) || data.error || 'Login falhou');
-        }
-
-        const payload = data.data || data;
+        const payload = data;
 
         if (!payload.token) {
             console.error('❌ Token não recebido:', data);

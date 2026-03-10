@@ -17,7 +17,7 @@ jest.unstable_mockModule('../../api/auth-middleware.js', () => ({
 }));
 
 const { query } = await import('../../api/db.js');
-const { default: handler } = await import('../../api/orders/index.js');
+const { default: handler } = await import('../../api/_orders/index.js');
 
 describe('Orders API', () => {
   let req, res;

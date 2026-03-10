@@ -7,7 +7,7 @@ jest.unstable_mockModule('../../api/db.js', () => ({
 }));
 
 const { query } = await import('../../api/db.js');
-const { default: handler } = await import('../../api/auth/register.js');
+const { default: handler } = await import('../../api/_auth/register.js');
 
 describe('Auth Register API', () => {
   let req, res;
