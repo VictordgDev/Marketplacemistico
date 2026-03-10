@@ -15,8 +15,11 @@ async function handler(req, res) {
 
   const protocol = req.headers['x-forwarded-proto'] || 'http';
   const host = req.headers['host'];
-  const defaultRedirectUri = `${protocol}://${host}/api/auth/callback/google`;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultRedirectUri;
+
+  let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  if (!redirectUri) {
+    redirectUri = `${protocol}://${host}/api/auth/callback/google`;
+  }
 
   try {
     // 1. Trocar o código pelo token de acesso
@@ -73,9 +76,12 @@ async function handler(req, res) {
     }
 
     // 4. Gerar JWT
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET não configurada');
+
     const token = jwt.sign(
       { id: user.id, email: user.email, tipo: user.tipo },
-      process.env.JWT_SECRET || 'secret_padrao_mude_isso',
+      secret,
       { expiresIn: '7d' }
     );
 

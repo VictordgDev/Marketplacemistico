@@ -2,7 +2,7 @@ import { query } from '../db.js';
 import { sanitizeInteger, sanitizeString, sanitizeNumber, sanitizeUrl, sanitizeBoolean } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
-import { requireAuth, requireVendedor } from '../auth-middleware.js';
+import { requireAuth as _requireAuth, requireVendedor } from '../auth-middleware.js';
 
 async function handler(req, res) {
   const { id } = req.query;

@@ -22,6 +22,12 @@ jobs:
     - name: Instalar dependências
       run: npm install
 
+    - name: Executar análise estática (Linter)
+      run: npm run lint
+
+    - name: Verificar vulnerabilidades em dependências (SCA)
+      run: npm run audit || true # Não quebra a build agora, mas reporta
+
     - name: Executar testes unitários e de integração
       run: npm test
 

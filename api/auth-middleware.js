@@ -11,8 +11,13 @@ function verifyToken(req) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
 
   const token = authHeader.slice(7);
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('ERRO CRÍTICO: JWT_SECRET não configurada!');
+    return null;
+  }
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'secret_padrao_mude_isso');
+    return jwt.verify(token, secret);
   } catch {
     return null;
   }

@@ -1,3 +1,5 @@
+import xss from 'xss';
+
 /**
  * Sanitization utilities to prevent XSS and injection attacks
  */
@@ -86,17 +88,14 @@ export function hasBadSequence(s, limit = 4) {
 export function sanitizeString(input) {
   if (typeof input !== 'string') return input;
   
-  return input
-    .trim()
-    // Remove HTML tags using a simple and efficient approach
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    // Remove javascript: protocol
-    .replace(/javascript:/gi, '')
-    // Remove on* event handlers
-    .replace(/on\w+\s*=/gi, '')
-    // Limit length to prevent DoS
-    .slice(0, 10000);
+  // Use xss library for robust sanitization
+  const sanitized = xss(input, {
+    whiteList: {}, // Empty whitelist means all tags are stripped/escaped
+    stripIgnoreTag: true,
+    stripIgnoreTagBody: ['script']
+  });
+
+  return sanitized.trim().slice(0, 10000);
 }
 
 // --- Name Validation ---

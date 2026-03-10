@@ -13,17 +13,17 @@ async function handler(req, res) {
   }
 
   const token = authHeader.slice(7);
-  const secret = process.env.JWT_SECRET || 'secret_padrao_mude_isso';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    return sendError(res, 'INTERNAL_ERROR', 'Configuração do servidor incompleta', 500);
+  }
 
   try {
-    // Verify token (ignoring expiration to allow refresh of recently expired tokens)
-    const decoded = jwt.verify(token, secret, { ignoreExpiration: true });
-
-    // Only allow refresh within 7 days of expiration
-    const now = Math.floor(Date.now() / 1000);
-    if (decoded.exp && now - decoded.exp > 7 * 24 * 60 * 60) {
-      return sendError(res, 'TOKEN_EXPIRED', 'Token expirado há mais de 7 dias, faça login novamente', 401);
-    }
+    // Verificar token normalmente (sem ignorar expiração)
+    // Para implementar um refresh token seguro, deveríamos ter um token de refresh separado
+    // armazenado no banco ou em cookie HttpOnly.
+    // Como o sistema atual usa apenas um JWT, vamos garantir que ele seja válido.
+    const decoded = jwt.verify(token, secret);
 
     const newToken = jwt.sign(
       { id: decoded.id, email: decoded.email, tipo: decoded.tipo },

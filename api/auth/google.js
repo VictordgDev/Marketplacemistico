@@ -8,11 +8,16 @@ async function handler(req, res) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
-  // Tornar a URL de redirecionamento dinâmica para suportar ambientes de teste/preview
-  const protocol = req.headers['x-forwarded-proto'] || 'http';
-  const host = req.headers['host'];
-  const defaultRedirectUri = `${protocol}://${host}/api/auth/callback/google`;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultRedirectUri;
+  // Usar GOOGLE_REDIRECT_URI da variável de ambiente por segurança (evita Host Header Injection)
+  let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+
+  if (!redirectUri) {
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers['host'];
+    // Em produção, o ideal é que GOOGLE_REDIRECT_URI esteja configurado.
+    // Se não estiver, usamos o host atual, mas isso pode ser explorado se o proxy não for confiável.
+    redirectUri = `${protocol}://${host}/api/auth/callback/google`;
+  }
 
   if (!clientId) {
     return sendError(res, 'CONFIG_ERROR', 'GOOGLE_CLIENT_ID não configurado');

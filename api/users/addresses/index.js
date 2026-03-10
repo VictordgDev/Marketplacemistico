@@ -1,5 +1,5 @@
 import { query } from '../../db.js';
-import { sanitizeString, sanitizeInteger } from '../../sanitize.js';
+import { sanitizeString, sanitizeInteger as _sanitizeInteger } from '../../sanitize.js';
 import { sendSuccess, sendError } from '../../response.js';
 import { withCors } from '../../middleware.js';
 import { requireAuth } from '../../auth-middleware.js';

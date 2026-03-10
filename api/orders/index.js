@@ -45,7 +45,7 @@ async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { items, address_id } = req.body;
+      const { items, address_id: _address_id } = req.body; // address_id mantido para compatibilidade de API
 
       if (!Array.isArray(items) || items.length === 0) {
         return sendError(res, 'VALIDATION_ERROR', 'Itens do pedido são obrigatórios');

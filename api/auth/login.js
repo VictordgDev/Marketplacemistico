@@ -48,9 +48,12 @@ async function handler(req, res) {
 
     console.log('✅ Senha válida');
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET não configurada');
+
     const token = jwt.sign(
       { id: user.id, email: user.email, tipo: user.tipo },
-      process.env.JWT_SECRET || 'secret_padrao_mude_isso',
+      secret,
       { expiresIn: '7d' }
     );
 

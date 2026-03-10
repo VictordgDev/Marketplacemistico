@@ -12,6 +12,14 @@ const { default: handler } = await import('../../api/auth/register.js');
 describe('Auth Register API', () => {
   let req, res;
 
+  beforeAll(() => {
+    process.env.JWT_SECRET = 'test_secret';
+  });
+
+  afterAll(() => {
+    delete process.env.JWT_SECRET;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     res = {

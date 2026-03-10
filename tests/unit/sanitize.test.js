@@ -2,11 +2,30 @@ import {
   sanitizeCpfCnpj,
   detectCpfCnpj,
   validatePassword,
-  sanitizeEmail,
-  validateEmail
+  validateEmail,
+  sanitizeString
 } from '../../api/sanitize.js';
 
 describe('Sanitization Utilities', () => {
+
+  describe('String Sanitization (XSS)', () => {
+    test('should remove script tags', () => {
+      const input = '<script>alert("xss")</script>Hello';
+      expect(sanitizeString(input)).toBe('Hello');
+    });
+
+    test('should escape other tags when whitelist is empty', () => {
+      const input = '<p>Hello</p> <img src="x" onerror="alert(1)">';
+      const result = sanitizeString(input);
+      expect(result).not.toContain('<p>');
+      expect(result).not.toContain('onerror');
+    });
+
+    test('should remove javascript: protocol', () => {
+      const input = '<a href="javascript:alert(1)">Click me</a>';
+      expect(sanitizeString(input)).not.toContain('javascript:');
+    });
+  });
 
   describe('CPF/CNPJ Sanitization', () => {
     test('should remove non-digit characters from CPF', () => {

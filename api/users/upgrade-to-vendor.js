@@ -44,7 +44,7 @@ async function handler(req, res) {
       ['vendedor', sanitizedCpfCnpj, req.user.id]
     );
 
-    const sellerResult = await query(
+    await query(
       `INSERT INTO sellers (user_id, nome_loja, categoria, descricao_loja)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
@@ -62,9 +62,12 @@ async function handler(req, res) {
 
     const updatedUser = updatedUsers[0];
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET não configurada');
+
     const newToken = jwt.sign(
       { id: updatedUser.id, email: updatedUser.email, tipo: updatedUser.tipo },
-      process.env.JWT_SECRET || 'secret_padrao_mude_isso',
+      secret,
       { expiresIn: '7d' }
     );
 
