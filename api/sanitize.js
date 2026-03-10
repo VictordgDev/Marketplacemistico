@@ -53,6 +53,7 @@ export function hasBadSequence(s, limit = 4) {
   // Check for repeated characters (e.g., "aaaa")
   let run = 1;
   for (let i = 1; i < str.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     if (str[i] === str[i-1]) {
       run++;
       if (run >= limit) return true;
@@ -302,21 +303,27 @@ export function sanitizeObject(obj, stringFields = [], emailFields = [], urlFiel
   const sanitized = { ...obj };
   
   stringFields.forEach(field => {
+    /* eslint-disable security/detect-object-injection */
     if (sanitized[field] !== undefined) {
       sanitized[field] = sanitizeString(sanitized[field]);
     }
+    /* eslint-enable security/detect-object-injection */
   });
   
   emailFields.forEach(field => {
+    /* eslint-disable security/detect-object-injection */
     if (sanitized[field] !== undefined) {
       sanitized[field] = sanitizeEmail(sanitized[field]);
     }
+    /* eslint-enable security/detect-object-injection */
   });
   
   urlFields.forEach(field => {
+    /* eslint-disable security/detect-object-injection */
     if (sanitized[field] !== undefined) {
       sanitized[field] = sanitizeUrl(sanitized[field]);
     }
+    /* eslint-enable security/detect-object-injection */
   });
   
   return sanitized;

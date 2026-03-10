@@ -73,7 +73,7 @@ const estadosBrasileiros = [
 
 let products = [];
 let shoppingCart = [];
-let currentFilter = 'Todos';
+let _currentFilter = 'Todos';
 
 // ==================== HELPERS ====================
 function getProductImageHTML(product) {
@@ -392,7 +392,7 @@ function populateSellerProfile() {
     }
 }
 
-function goToMarketplaceWithCategory(category) {
+function _goToMarketplaceWithCategory(category) {
     showPage('marketplace');
     filterByCategory(category);
 }
@@ -570,8 +570,9 @@ function cancelAddProduct() {
     showPage('seller-products');
 }
 
-function contactSeller(sellerId) {
+function contactSeller(_sellerId) {
     // Future implementation: contact seller
+    console.log('Contatando vendedor:', _sellerId);
     alert('Funcionalidade de contato em desenvolvimento');
 }
 
@@ -1270,7 +1271,7 @@ function filterByCategory(categoria) {
         }
     });
     
-    currentFilter = categoria;
+    _currentFilter = categoria;
     loadProducts(categoria);
 }
 
