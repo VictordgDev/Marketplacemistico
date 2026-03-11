@@ -108,7 +108,7 @@ async function apiRequest(endpoint, options = {}) {
                 data = await response.json();
             } catch (e) {
                 console.error('Erro ao processar JSON:', e);
-                throw new Error('Resposta do servidor inválida');
+                throw new Error('Resposta do servidor inválida', { cause: e });
             }
         } else {
             // Not JSON (could be a 404 HTML page from Vercel)
