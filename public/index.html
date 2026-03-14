@@ -546,6 +546,34 @@
                             <div class="error-message" id="product-stock-error">Estoque é obrigatório</div>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Dados de Frete *</label>
+                            <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-bottom: var(--space-3);">
+                                Necessário para cotação e publicação do produto.
+                            </p>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3);">
+                                <div>
+                                    <label for="product-weight" class="form-label">Peso (kg) *</label>
+                                    <input type="number" id="product-weight" class="form-input" step="0.001" min="0.001" placeholder="0.300" required>
+                                </div>
+                                <div>
+                                    <label for="product-height" class="form-label">Altura (cm) *</label>
+                                    <input type="number" id="product-height" class="form-input" step="0.01" min="0.01" placeholder="10.00" required>
+                                </div>
+                                <div>
+                                    <label for="product-width" class="form-label">Largura (cm) *</label>
+                                    <input type="number" id="product-width" class="form-input" step="0.01" min="0.01" placeholder="10.00" required>
+                                </div>
+                                <div>
+                                    <label for="product-length" class="form-label">Comprimento (cm) *</label>
+                                    <input type="number" id="product-length" class="form-input" step="0.01" min="0.01" placeholder="10.00" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-insurance-value" class="form-label">Valor segurado (R$)</label>
+                            <input type="number" id="product-insurance-value" class="form-input" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
                             <label for="product-image" class="form-label">URL da Imagem</label>
                             <input type="url" id="product-image" class="form-input" placeholder="https://exemplo.com/imagem.jpg">
                         </div>

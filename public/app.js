@@ -941,12 +941,29 @@ async function addProduct(event) {
     const categoria = document.getElementById('product-category').value;
     const descricao = document.getElementById('product-description').value.trim();
     const preco = parseFloat(document.getElementById('product-price').value);
-    const estoque = parseInt(document.getElementById('product-stock').value);
+    const estoque = parseInt(document.getElementById('product-stock').value, 10);
+    const weightKg = parseFloat(document.getElementById('product-weight').value);
+    const heightCm = parseFloat(document.getElementById('product-height').value);
+    const widthCm = parseFloat(document.getElementById('product-width').value);
+    const lengthCm = parseFloat(document.getElementById('product-length').value);
+    const insuranceRaw = document.getElementById('product-insurance-value').value;
+    const insuranceValue = insuranceRaw ? parseFloat(insuranceRaw) : 0;
     const imagemUrl = document.getElementById('product-image').value.trim();
     const publicado = document.getElementById('product-published').checked;
 
     if (!nome || !categoria || isNaN(preco)) {
-        alert('Preencha todos os campos obrigatórios');
+        alert('Preencha todos os campos obrigatorios');
+        return;
+    }
+
+    if (
+        isNaN(weightKg) || weightKg <= 0 ||
+        isNaN(heightCm) || heightCm <= 0 ||
+        isNaN(widthCm) || widthCm <= 0 ||
+        isNaN(lengthCm) || lengthCm <= 0 ||
+        isNaN(insuranceValue) || insuranceValue < 0
+    ) {
+        alert('Preencha peso e dimensoes com valores positivos. Valor segurado deve ser maior ou igual a zero.');
         return;
     }
 
@@ -954,7 +971,18 @@ async function addProduct(event) {
         await apiRequest('/products', {
             method: 'POST',
             body: JSON.stringify({
-                nome, categoria, descricao, preco, estoque, imagemUrl, publicado
+                nome,
+                categoria,
+                descricao,
+                preco,
+                estoque,
+                imagemUrl,
+                publicado,
+                weightKg,
+                heightCm,
+                widthCm,
+                lengthCm,
+                insuranceValue
             })
         });
 
@@ -967,7 +995,6 @@ async function addProduct(event) {
         alert('Erro ao adicionar produto: ' + error.message);
     }
 }
-
 async function deleteProduct(productId) {
     if (!confirm('Tem certeza que deseja excluir este produto?')) {
         return;
