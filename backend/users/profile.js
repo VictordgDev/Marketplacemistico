@@ -1,5 +1,5 @@
 import { query } from '../db.js';
-import { sanitizeString, sanitizeEmail as _sanitizeEmail, sanitizePhone } from '../sanitize.js';
+import { sanitizeString, sanitizePhone, validatePhone } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
 import { requireAuth } from '../auth-middleware.js';
@@ -18,7 +18,7 @@ async function handler(req, res) {
       );
 
       if (users.length === 0) {
-        return sendError(res, 'NOT_FOUND', 'Usuário não encontrado', 404);
+        return sendError(res, 'NOT_FOUND', 'Usuario nao encontrado', 404);
       }
 
       return sendSuccess(res, { user: users[0] });
@@ -36,7 +36,24 @@ async function handler(req, res) {
       telefone = sanitizePhone(telefone);
 
       if (!nome) {
-        return sendError(res, 'VALIDATION_ERROR', 'Nome é obrigatório');
+        return sendError(res, 'VALIDATION_ERROR', 'Nome e obrigatorio');
+      }
+
+      if (telefone) {
+        const phoneValidation = validatePhone(telefone);
+        if (!phoneValidation.ok) {
+          return sendError(res, 'VALIDATION_ERROR', phoneValidation.reason);
+        }
+
+        const existingPhone = await query(
+          'SELECT id FROM users WHERE telefone = $1 AND id <> $2 LIMIT 1',
+          [phoneValidation.value, req.user.id]
+        );
+        if (existingPhone.length > 0) {
+          return sendError(res, 'PHONE_TAKEN', 'Telefone ja cadastrado');
+        }
+
+        telefone = phoneValidation.value;
       }
 
       await query(
@@ -61,7 +78,7 @@ async function handler(req, res) {
     }
   }
 
-  return sendError(res, 'METHOD_NOT_ALLOWED', 'Método não permitido', 405);
+  return sendError(res, 'METHOD_NOT_ALLOWED', 'Metodo nao permitido', 405);
 }
 
 export default withCors(requireAuth(handler));

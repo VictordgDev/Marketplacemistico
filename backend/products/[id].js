@@ -1,15 +1,22 @@
 import { query } from '../db.js';
-import { sanitizeInteger, sanitizeString, sanitizeNumber, sanitizeUrl, sanitizeBoolean } from '../sanitize.js';
+import {
+  sanitizeInteger,
+  sanitizeString,
+  sanitizeNumber,
+  sanitizeUrl,
+  sanitizeBoolean,
+  validateDimensions
+} from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
-import { requireAuth as _requireAuth, requireVendedor } from '../auth-middleware.js';
+import { requireVendedor } from '../auth-middleware.js';
 
 async function handler(req, res) {
   const { id } = req.query;
   const sanitizedId = sanitizeInteger(id);
 
   if (!sanitizedId) {
-    return sendError(res, 'INVALID_ID', 'ID inválido');
+    return sendError(res, 'INVALID_ID', 'ID invalido');
   }
 
   if (req.method === 'GET') {
@@ -23,7 +30,7 @@ async function handler(req, res) {
       );
 
       if (products.length === 0) {
-        return sendError(res, 'NOT_FOUND', 'Produto não encontrado', 404);
+        return sendError(res, 'NOT_FOUND', 'Produto nao encontrado', 404);
       }
 
       return sendSuccess(res, { product: products[0] });
@@ -34,15 +41,33 @@ async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    return requireVendedor(async (req, res) => {
+    return requireVendedor(async (request, response) => {
       try {
-        const sellers = await query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+        const sellers = await query('SELECT id FROM sellers WHERE user_id = $1', [request.user.id]);
         if (sellers.length === 0) {
-          return sendError(res, 'NOT_FOUND', 'Vendedor não encontrado', 404);
+          return sendError(response, 'NOT_FOUND', 'Vendedor nao encontrado', 404);
         }
         const sellerId = sellers[0].id;
 
-        let { nome, categoria, descricao, preco, estoque, imagemUrl, publicado } = req.body;
+        let {
+          nome,
+          categoria,
+          descricao,
+          preco,
+          estoque,
+          imagemUrl,
+          publicado,
+          weightKg,
+          heightCm,
+          widthCm,
+          lengthCm,
+          insuranceValue,
+          weight_kg,
+          height_cm,
+          width_cm,
+          length_cm,
+          insurance_value
+        } = request.body;
 
         nome = sanitizeString(nome);
         categoria = sanitizeString(categoria);
@@ -52,40 +77,71 @@ async function handler(req, res) {
         imagemUrl = sanitizeUrl(imagemUrl);
         publicado = sanitizeBoolean(publicado);
 
+        const dimensionsValidation = validateDimensions({
+          weightKg: weightKg ?? weight_kg,
+          heightCm: heightCm ?? height_cm,
+          widthCm: widthCm ?? width_cm,
+          lengthCm: lengthCm ?? length_cm,
+          insuranceValue: insuranceValue ?? insurance_value
+        }, publicado);
+
         if (!nome || !categoria || preco === null) {
-          return sendError(res, 'VALIDATION_ERROR', 'Campos obrigatórios faltando (nome, categoria, preco)');
+          return sendError(response, 'VALIDATION_ERROR', 'Campos obrigatorios faltando (nome, categoria, preco)');
+        }
+
+        if (!dimensionsValidation.ok) {
+          return sendError(response, 'VALIDATION_ERROR', dimensionsValidation.reason);
         }
 
         if (estoque === null || estoque < 0) {
           estoque = 0;
         }
 
+        const d = dimensionsValidation.value;
+
         const result = await query(
           `UPDATE products
-           SET nome=$1, categoria=$2, descricao=$3, preco=$4, estoque=$5, imagem_url=$6, publicado=$7, updated_at=CURRENT_TIMESTAMP
-           WHERE id=$8 AND seller_id=$9
+           SET nome=$1, categoria=$2, descricao=$3, preco=$4, estoque=$5, imagem_url=$6, publicado=$7,
+               weight_kg=$8, height_cm=$9, width_cm=$10, length_cm=$11, insurance_value=$12,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id=$13 AND seller_id=$14
            RETURNING *`,
-          [nome, categoria, descricao, preco, estoque, imagemUrl || '', publicado, sanitizedId, sellerId]
+          [
+            nome,
+            categoria,
+            descricao,
+            preco,
+            estoque,
+            imagemUrl || '',
+            publicado,
+            d.weightKg,
+            d.heightCm,
+            d.widthCm,
+            d.lengthCm,
+            d.insuranceValue,
+            sanitizedId,
+            sellerId
+          ]
         );
 
         if (result.length === 0) {
-          return sendError(res, 'NOT_FOUND', 'Produto não encontrado ou sem permissão', 404);
+          return sendError(response, 'NOT_FOUND', 'Produto nao encontrado ou sem permissao', 404);
         }
 
-        return sendSuccess(res, { product: result[0] });
+        return sendSuccess(response, { product: result[0] });
       } catch (error) {
         console.error('Erro ao atualizar produto:', error);
-        return sendError(res, 'INTERNAL_ERROR', 'Erro ao atualizar produto', 500);
+        return sendError(response, 'INTERNAL_ERROR', 'Erro ao atualizar produto', 500);
       }
     })(req, res);
   }
 
   if (req.method === 'DELETE') {
-    return requireVendedor(async (req, res) => {
+    return requireVendedor(async (request, response) => {
       try {
-        const sellers = await query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+        const sellers = await query('SELECT id FROM sellers WHERE user_id = $1', [request.user.id]);
         if (sellers.length === 0) {
-          return sendError(res, 'NOT_FOUND', 'Vendedor não encontrado', 404);
+          return sendError(response, 'NOT_FOUND', 'Vendedor nao encontrado', 404);
         }
         const sellerId = sellers[0].id;
 
@@ -95,19 +151,18 @@ async function handler(req, res) {
         );
 
         if (result.length === 0) {
-          return sendError(res, 'NOT_FOUND', 'Produto não encontrado ou sem permissão', 404);
+          return sendError(response, 'NOT_FOUND', 'Produto nao encontrado ou sem permissao', 404);
         }
 
-        console.log('✅ Produto deletado:', sanitizedId);
-        return sendSuccess(res, { message: 'Produto deletado' });
+        return sendSuccess(response, { message: 'Produto deletado' });
       } catch (error) {
         console.error('Erro ao deletar produto:', error);
-        return sendError(res, 'INTERNAL_ERROR', 'Erro ao deletar produto', 500);
+        return sendError(response, 'INTERNAL_ERROR', 'Erro ao deletar produto', 500);
       }
     })(req, res);
   }
 
-  return sendError(res, 'METHOD_NOT_ALLOWED', 'Método não permitido', 405);
+  return sendError(res, 'METHOD_NOT_ALLOWED', 'Metodo nao permitido', 405);
 }
 
 export default withCors(handler);

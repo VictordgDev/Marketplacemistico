@@ -14,6 +14,10 @@ export const routes = [
   { pattern: '/api/orders/:id/status', load: () => import('./orders/[id]/status.js') },
   { pattern: '/api/orders/:id', load: () => import('./orders/[id].js') },
   { pattern: '/api/orders', load: () => import('./orders/index.js') },
+  { pattern: '/api/payments/create', load: () => import('./payments/create.js') },
+  { pattern: '/api/shipping/quote', load: () => import('./shipping/quote.js') },
+  { pattern: '/api/webhooks/efi', load: () => import('./webhooks/efi.js') },
+  { pattern: '/api/webhooks/melhor-envio', load: () => import('./webhooks/melhor-envio.js') },
 
   {
     pattern: '/api/products/:id/publish',

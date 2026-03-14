@@ -16,7 +16,7 @@ describe('Cart Logic', () => {
     });
 
     test('should increment quantity if product already in cart', () => {
-        const product = { id: 1, nome: 'Cristal', preco: 50.0 };
+        const product = { id: 1, nome: 'Cristal', preco: 50.0, seller_id: 10 };
         let cart = addToCart(initialCart, product);
         cart = addToCart(cart, product);
 
@@ -33,6 +33,16 @@ describe('Cart Logic', () => {
 
         expect(newCart).toHaveLength(1);
         expect(newCart[0].id).toBe(2);
+    });
+
+    test('should block adding product from a different seller', () => {
+        const firstProduct = { id: 1, nome: 'Cristal', preco: 50.0, seller_id: 10 };
+        const secondProduct = { id: 2, nome: 'Vela', preco: 15.0, seller_id: 20 };
+        let cart = addToCart(initialCart, firstProduct);
+        cart = addToCart(cart, secondProduct);
+
+        expect(cart).toHaveLength(1);
+        expect(cart[0].id).toBe(1);
     });
 
     test('should calculate subtotal correctly', () => {

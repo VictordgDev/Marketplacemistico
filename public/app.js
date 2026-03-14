@@ -1161,8 +1161,16 @@ function addToCart(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    shoppingCart = cartAdd(shoppingCart, product);
+    const previousTotalItems = shoppingCart.reduce((sum, item) => sum + item.quantidade, 0);
+    const nextCart = cartAdd(shoppingCart, product);
+    const nextTotalItems = nextCart.reduce((sum, item) => sum + item.quantidade, 0);
 
+    if (nextTotalItems === previousTotalItems) {
+        alert('No MVP, o carrinho aceita produtos de apenas um vendedor por vez.');
+        return;
+    }
+
+    shoppingCart = nextCart;
     updateCartBadge();
     alert('Produto adicionado ao carrinho!');
 }

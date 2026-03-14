@@ -3,6 +3,15 @@
  */
 export function addToCart(cart, product) {
     if (!product) return cart;
+    const currentSellerId = cart.length > 0 ? cart[0].seller_id : null;
+    if (
+        currentSellerId !== null &&
+        product.seller_id !== undefined &&
+        product.seller_id !== null &&
+        currentSellerId !== product.seller_id
+    ) {
+        return cart;
+    }
 
     const newCart = [...cart];
     const existingItem = newCart.find(item => item.id === product.id);
