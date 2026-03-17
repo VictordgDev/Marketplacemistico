@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "audit": "npm audit",
     "db:migrate": "node scripts/migrate.js up",
-    "db:rollback": "node scripts/migrate.js down"
+    "db:rollback": "node scripts/migrate.js down",
+    "ops:smoke": "node scripts/smoke-test.js",
+    "ops:load": "node scripts/load-test.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
