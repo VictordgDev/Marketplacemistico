@@ -11,6 +11,7 @@
 - `EFI_PIX_CHARGE_URL` (opcional)
 - `EFI_WEBHOOK_SECRET` (opcional)
 - `EFI_MOCK=true` (opcional para desenvolvimento local)
+- `WEBHOOK_OPS_SECRET` ou `WEBHOOK_REPROCESS_SECRET` (opcional para endpoints operacionais de replay/retry)
 
 ### Melhor Envio
 - `MELHOR_ENVIO_ACCESS_TOKEN`
@@ -31,6 +32,16 @@
 
 - `POST /api/webhooks/efi`
   - header opcional: `x-webhook-secret`
+
+- `POST /api/webhooks/efi/retry`
+  - body opcional:
+  - `{ \"limit\": 10 }`
+  - header opcional para operacao interna: `x-webhook-ops-secret`
+
+- `POST /api/webhooks/efi/reprocess`
+  - body:
+  - `{ \"event_id\": 123, \"force\": false }`
+  - header opcional para operacao interna: `x-webhook-ops-secret`
 
 - `POST /api/webhooks/melhor-envio`
   - header opcional: `x-webhook-secret`

@@ -55,6 +55,9 @@ describe('EFI webhook idempotency', () => {
     };
 
     query.mockResolvedValueOnce([]);
+    query.mockResolvedValueOnce([
+      { id: 1, status: 'processed', retry_count: 0, max_retries: 5, payload_json: {} }
+    ]);
 
     await handler(req, res);
 
@@ -74,6 +77,7 @@ describe('EFI webhook idempotency', () => {
 
     query.mockResolvedValueOnce([{ id: 1 }]);
     query.mockResolvedValueOnce([{ id: 10, order_id: 99, status: 'approved' }]);
+    query.mockResolvedValueOnce([{ id: 1 }]);
     query.mockResolvedValueOnce([]);
 
     await handler(req, res);
