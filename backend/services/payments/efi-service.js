@@ -1,5 +1,5 @@
-import { createPixCharge } from './efi-client.js';
-import { mapCreateChargePayload, mapEfiChargeResponse } from './efi-mapper.js';
+import { createPixCharge, createPixRefund } from './efi-client.js';
+import { mapCreateChargePayload, mapEfiChargeResponse, mapEfiRefundResponse } from './efi-mapper.js';
 
 export async function createEfiCharge({ order, buyer, seller, paymentMethod = 'pix' }) {
   if (paymentMethod !== 'pix') {
@@ -22,5 +22,20 @@ export async function createEfiCharge({ order, buyer, seller, paymentMethod = 'p
     ...mapEfiChargeResponse(providerResponse, paymentMethod),
     splitMode: splitConfig.mode,
     splitRecipientCode: splitConfig.recipient_code
+  };
+}
+
+export async function createEfiRefund({ providerChargeId, amount, reason }) {
+  const refundReference = `refund_${Date.now()}`;
+  const providerResponse = await createPixRefund({
+    providerChargeId,
+    amount,
+    refundReference,
+    reason
+  });
+
+  return {
+    ...mapEfiRefundResponse(providerResponse, amount),
+    refundReference
   };
 }

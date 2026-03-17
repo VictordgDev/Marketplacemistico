@@ -1,6 +1,7 @@
 const DEFAULT_EFI_BASE_URL = process.env.EFI_BASE_URL || 'https://pix-h.api.efipay.com.br';
 const DEFAULT_EFI_TOKEN_URL = process.env.EFI_TOKEN_URL || `${DEFAULT_EFI_BASE_URL}/oauth/token`;
 const DEFAULT_EFI_PIX_CHARGE_URL = process.env.EFI_PIX_CHARGE_URL || `${DEFAULT_EFI_BASE_URL}/v2/cob`;
+const DEFAULT_EFI_PIX_REFUND_URL = process.env.EFI_PIX_REFUND_URL || `${DEFAULT_EFI_BASE_URL}/v2/pix`;
 
 let tokenCache = {
   accessToken: null,
@@ -94,6 +95,39 @@ export async function getChargeStatus(providerChargeId) {
   const data = await response.json();
   if (!response.ok) {
     throw new Error(`Erro ao consultar cobranca EFI: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
+export async function createPixRefund({ providerChargeId, amount, refundReference }) {
+  if (isMockMode()) {
+    return {
+      provider_refund_id: refundReference || `refund_mock_${Date.now()}`,
+      provider_charge_id: providerChargeId,
+      status: 'processed',
+      amount,
+      raw: { mock: true }
+    };
+  }
+
+  const token = await fetchToken();
+  const safeReference = refundReference || `refund_${Date.now()}`;
+  const url = `${DEFAULT_EFI_PIX_REFUND_URL}/${providerChargeId}/devolucao/${safeReference}`;
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      valor: Number(amount).toFixed(2)
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Erro ao criar refund EFI: ${response.status} ${JSON.stringify(data)}`);
   }
 
   return data;

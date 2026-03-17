@@ -9,6 +9,7 @@
 - `EFI_BASE_URL` (opcional)
 - `EFI_TOKEN_URL` (opcional)
 - `EFI_PIX_CHARGE_URL` (opcional)
+- `EFI_PIX_REFUND_URL` (opcional)
 - `EFI_WEBHOOK_SECRET` (opcional)
 - `EFI_MOCK=true` (opcional para desenvolvimento local)
 - `WEBHOOK_OPS_SECRET` ou `WEBHOOK_REPROCESS_SECRET` (opcional para endpoints operacionais de replay/retry)
@@ -29,6 +30,10 @@
 - `POST /api/shipping/quote`
   - body:
   - `{"seller_id":1,"destination_postal_code":"01311-000","items":[{"product_id":1},{"product_id":2}],"cart_id":"cart_abc"}`
+
+- `POST /api/payments/refund`
+  - body:
+  - `{ \"payment_id\": 10, \"reason\": \"cliente desistiu\" }`
 
 - `POST /api/webhooks/efi`
   - header opcional: `x-webhook-secret`

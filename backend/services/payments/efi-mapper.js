@@ -35,3 +35,22 @@ export function mapEfiChargeResponse(response, fallbackPaymentMethod = 'pix') {
     raw: response
   };
 }
+
+export function mapEfiRefundResponse(response, fallbackAmount = 0) {
+  const status = response.status || response.situacao || response.state || 'processed';
+
+  return {
+    providerRefundId:
+      response.id ||
+      response.refund_id ||
+      response.e2eId ||
+      response.provider_refund_id,
+    providerChargeId:
+      response.txid ||
+      response.charge_id ||
+      response.provider_charge_id,
+    status,
+    amount: Number(response.valor || response.amount || fallbackAmount || 0),
+    raw: response
+  };
+}
