@@ -6,11 +6,15 @@ import { requireAuth } from '../auth-middleware.js';
 import { createEfiCharge } from '../services/payments/efi-service.js';
 import { normalizePaymentStatus } from '../services/payments/payment-status-machine.js';
 import { recordPaymentLedgerEntries } from '../services/finance/ledger-service.js';
+import { logError, logInfo } from '../observability/logger.js';
+import { incrementMetric } from '../observability/metrics-store.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
     return sendError(res, 'METHOD_NOT_ALLOWED', 'Metodo nao permitido', 405);
   }
+
+  incrementMetric('payments.create.request.total');
 
   try {
     const orderId = sanitizeInteger(req.body.order_id);
@@ -117,6 +121,8 @@ async function handler(req, res) {
       );
     }
 
+    incrementMetric('payments.create.success.total');
+
     return sendSuccess(res, {
       payment,
       pixQrCode: charge.pixQrCode,
@@ -124,8 +130,17 @@ async function handler(req, res) {
       splitMode: charge.splitMode
     }, 201);
   } catch (error) {
-    console.error('Erro ao criar cobranca:', error);
+    incrementMetric('payments.create.error.total');
+    logError('payments.create.error', error, {
+      correlation_id: req.correlationId || null
+    });
     return sendError(res, 'INTERNAL_ERROR', 'Erro ao criar cobranca de pagamento', 500);
+  }
+
+  finally {
+    logInfo('payments.create.completed', {
+      correlation_id: req.correlationId || null
+    });
   }
 }
 

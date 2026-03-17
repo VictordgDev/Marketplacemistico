@@ -1,6 +1,8 @@
 ﻿import { sanitizeString } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
+import { logError, logInfo } from '../observability/logger.js';
+import { incrementMetric } from '../observability/metrics-store.js';
 import {
   claimWebhookEventByKey,
   extractEfiEvent,
@@ -25,6 +27,7 @@ async function handler(req, res) {
 
   const payload = req.body || {};
   const event = extractEfiEvent(payload);
+  incrementMetric('webhooks.efi.received.total');
 
   if (!event.providerChargeId) {
     return sendError(res, 'VALIDATION_ERROR', 'provider_charge_id ausente');
@@ -41,12 +44,20 @@ async function handler(req, res) {
 
     if (!claim.claimed) {
       if (claim.reason === 'processing') {
+        incrementMetric('webhooks.efi.in_progress.total');
         return sendSuccess(res, { message: 'Evento em processamento' });
       }
+      incrementMetric('webhooks.efi.duplicate.total');
       return sendSuccess(res, { message: 'Evento ja processado' });
     }
 
     const result = await processEfiWebhookEvent({ eventId: claim.event.id, payload });
+    incrementMetric('webhooks.efi.processed.total');
+    logInfo('webhooks.efi.processed', {
+      correlation_id: req.correlationId || null,
+      provider_charge_id: event.providerChargeId,
+      event_type: event.eventType
+    });
     return sendSuccess(res, result);
   } catch (error) {
     const eventType = sanitizeString(event.eventType || 'payment_status_changed');
@@ -63,6 +74,7 @@ async function handler(req, res) {
       if (claim.claimed) {
         await markWebhookIgnored({ eventId: claim.event.id, reason: error.message });
       }
+      incrementMetric('webhooks.efi.ignored.total');
 
       return sendSuccess(res, {
         processed: false,
@@ -87,6 +99,7 @@ async function handler(req, res) {
       });
 
       if (isRetryableWebhookError(error)) {
+        incrementMetric('webhooks.efi.retry_queued.total');
         return sendSuccess(res, {
           processed: false,
           queuedForRetry: true,
@@ -98,7 +111,12 @@ async function handler(req, res) {
       }
     }
 
-    console.error('Erro no webhook EFI:', error);
+    incrementMetric('webhooks.efi.error.total');
+    logError('webhooks.efi.error', error, {
+      correlation_id: req.correlationId || null,
+      provider_charge_id: event.providerChargeId,
+      event_type: event.eventType
+    });
     return sendError(res, 'INTERNAL_ERROR', 'Erro ao processar webhook EFI', 500);
   }
 }

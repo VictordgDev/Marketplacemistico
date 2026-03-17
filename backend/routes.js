@@ -17,6 +17,7 @@ export const routes = [
   { pattern: '/api/orders', load: () => import('./orders/index.js') },
   { pattern: '/api/payments/create', load: () => import('./payments/create.js') },
   { pattern: '/api/payments/refund', load: () => import('./payments/refund.js') },
+  { pattern: '/api/observability/metrics', load: () => import('./observability/metrics.js') },
   { pattern: '/api/manual-payouts/:id/action', load: () => import('./manual-payouts/[id]/action.js') },
   { pattern: '/api/manual-payouts', load: () => import('./manual-payouts/index.js') },
   { pattern: '/api/finance/ledger/:orderId', load: () => import('./finance/ledger/[orderId].js') },
