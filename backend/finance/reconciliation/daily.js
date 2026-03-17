@@ -1,6 +1,7 @@
 ﻿import { sanitizeString } from '../../sanitize.js';
 import { sendError, sendSuccess } from '../../response.js';
 import { withCors } from '../../middleware.js';
+import { requireInternalRole } from '../../auth-middleware.js';
 import { requireFinanceOpsSecret } from '../ops-auth.js';
 import { runDailyReconciliation } from '../../services/finance/reconciliation-service.js';
 
@@ -36,4 +37,4 @@ async function handler(req, res) {
   }
 }
 
-export default withCors(handler);
+export default withCors(requireInternalRole(handler));

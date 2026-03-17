@@ -4,6 +4,13 @@ jest.unstable_mockModule('../../backend/services/finance/reconciliation-service.
   runDailyReconciliation: jest.fn()
 }));
 
+jest.unstable_mockModule('../../backend/auth-middleware.js', () => ({
+  requireInternalRole: (handler) => async (req, res) => {
+    if (!req.user) req.user = { id: 1, role: 'operator' };
+    return handler(req, res);
+  }
+}));
+
 const { runDailyReconciliation } = await import('../../backend/services/finance/reconciliation-service.js');
 const { default: handler } = await import('../../backend/finance/reconciliation/daily.js');
 
@@ -17,7 +24,8 @@ describe('Finance reconciliation daily API', () => {
       method: 'POST',
       headers: {},
       query: {},
-      body: { run_date: '2026-03-16' }
+      body: { run_date: '2026-03-16' },
+      user: { id: 1, role: 'operator' }
     };
     res = {
       status: jest.fn().mockReturnThis(),

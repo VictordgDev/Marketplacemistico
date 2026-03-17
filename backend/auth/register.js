@@ -13,6 +13,7 @@ import {
 } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
+import { resolveUserRole } from '../rbac.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -128,7 +129,7 @@ async function handler(req, res) {
     if (!secret) throw new Error('JWT_SECRET nao configurada');
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, tipo: user.tipo },
+      { id: user.id, email: user.email, tipo: user.tipo, role: resolveUserRole(user) },
       secret,
       { expiresIn: '7d' }
     );
@@ -141,6 +142,7 @@ async function handler(req, res) {
         user: {
           id: user.id,
           tipo: user.tipo,
+          role: resolveUserRole(user),
           nome: user.nome,
           email: user.email,
           telefone: user.telefone,

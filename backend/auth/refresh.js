@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
+import { resolveUserRole } from '../rbac.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -26,7 +27,12 @@ async function handler(req, res) {
     const decoded = jwt.verify(token, secret);
 
     const newToken = jwt.sign(
-      { id: decoded.id, email: decoded.email, tipo: decoded.tipo },
+      {
+        id: decoded.id,
+        email: decoded.email,
+        tipo: decoded.tipo,
+        role: resolveUserRole(decoded)
+      },
       secret,
       { expiresIn: '7d' }
     );

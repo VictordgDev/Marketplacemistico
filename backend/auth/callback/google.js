@@ -2,6 +2,7 @@ import { query } from '../../db.js';
 import jwt from 'jsonwebtoken';
 import { withCors } from '../../middleware.js';
 import { sendError } from '../../response.js';
+import { resolveUserRole } from '../../rbac.js';
 
 async function handler(req, res) {
   const { code } = req.query;
@@ -80,7 +81,7 @@ async function handler(req, res) {
     if (!secret) throw new Error('JWT_SECRET não configurada');
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, tipo: user.tipo },
+      { id: user.id, email: user.email, tipo: user.tipo, role: resolveUserRole(user) },
       secret,
       { expiresIn: '7d' }
     );
@@ -107,6 +108,7 @@ async function handler(req, res) {
     const userDataParam = encodeURIComponent(JSON.stringify({
         id: user.id,
         tipo: user.tipo,
+        role: resolveUserRole(user),
         nome: user.nome,
         email: user.email,
         telefone: user.telefone,

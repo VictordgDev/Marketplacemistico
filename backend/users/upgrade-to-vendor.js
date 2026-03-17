@@ -4,6 +4,7 @@ import { sanitizeString, validateCpfCnpj } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
 import { requireAuth } from '../auth-middleware.js';
+import { resolveUserRole } from '../rbac.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -85,7 +86,12 @@ async function handler(req, res) {
     if (!secret) throw new Error('JWT_SECRET nao configurada');
 
     const newToken = jwt.sign(
-      { id: updatedUser.id, email: updatedUser.email, tipo: updatedUser.tipo },
+      {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        tipo: updatedUser.tipo,
+        role: resolveUserRole(updatedUser)
+      },
       secret,
       { expiresIn: '7d' }
     );

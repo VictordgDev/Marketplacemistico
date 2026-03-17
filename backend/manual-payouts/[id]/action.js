@@ -2,7 +2,7 @@
 import { sanitizeInteger, sanitizeString } from '../../sanitize.js';
 import { sendError, sendSuccess } from '../../response.js';
 import { withCors } from '../../middleware.js';
-import { requireAuth } from '../../auth-middleware.js';
+import { requireInternalRole } from '../../auth-middleware.js';
 import { requireFinanceOpsSecret } from '../../finance/ops-auth.js';
 import { recordManualPayoutLedgerEntry } from '../../services/finance/ledger-service.js';
 
@@ -165,4 +165,5 @@ async function handler(req, res) {
   }
 }
 
-export default withCors(requireAuth(handler));
+export default withCors(requireInternalRole(handler));
+

@@ -24,7 +24,7 @@ async function handler(req, res) {
       return sendError(res, 'NOT_FOUND', 'Usuário não encontrado', 404);
     }
 
-    return sendSuccess(res, { user: users[0] });
+    return sendSuccess(res, { user: { ...users[0], role: req.user.role } });
   } catch (error) {
     console.error('Erro ao buscar usuário autenticado:', error);
     return sendError(res, 'INTERNAL_ERROR', 'Erro ao buscar dados do usuário', 500);

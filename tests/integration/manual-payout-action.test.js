@@ -9,8 +9,9 @@ jest.unstable_mockModule('../../backend/services/finance/ledger-service.js', () 
 }));
 
 jest.unstable_mockModule('../../backend/auth-middleware.js', () => ({
-  requireAuth: (handler) => async (req, res) => {
-    if (!req.user) req.user = { id: 77 };
+  requireInternalRole: (handler) => async (req, res) => {
+    if (!req.user) req.user = { id: 77, role: 'operator' };
+    if (!req.user.role) req.user.role = 'operator';
     return handler(req, res);
   }
 }));

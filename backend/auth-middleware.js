@@ -1,11 +1,7 @@
-import jwt from 'jsonwebtoken';
+﻿import jwt from 'jsonwebtoken';
 import { sendError } from './response.js';
+import { hasRole, resolveUserRole } from './rbac.js';
 
-/**
- * Verify JWT token from Authorization header.
- * @param {object} req - Request object
- * @returns {object|null} - Decoded token payload or null
- */
 function verifyToken(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -13,9 +9,10 @@ function verifyToken(req) {
   const token = authHeader.slice(7);
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    console.error('ERRO CRÍTICO: JWT_SECRET não configurada!');
+    console.error('ERRO CRITICO: JWT_SECRET nao configurada!');
     return null;
   }
+
   try {
     return jwt.verify(token, secret);
   } catch {
@@ -23,33 +20,31 @@ function verifyToken(req) {
   }
 }
 
-/**
- * Middleware that requires a valid JWT. Injects req.user = { id, email, tipo }.
- * Returns 401 if token is missing/invalid.
- * @param {Function} handler
- * @returns {Function}
- */
 export function requireAuth(handler) {
-  return async function (req, res) {
+  return async function wrappedAuth(req, res) {
     const user = verifyToken(req);
     if (!user) {
-      return sendError(res, 'UNAUTHORIZED', 'Token de autenticação inválido ou ausente', 401);
+      return sendError(res, 'UNAUTHORIZED', 'Token de autenticacao invalido ou ausente', 401);
     }
-    req.user = user;
+
+    req.user = { ...user, role: resolveUserRole(user) };
     return handler(req, res);
   };
 }
 
-/**
- * Middleware that requires a valid JWT AND that the user is a 'vendedor'.
- * Returns 401 if unauthenticated, 403 if not a vendor.
- * @param {Function} handler
- * @returns {Function}
- */
 export function requireVendedor(handler) {
-  return requireAuth(async function (req, res) {
+  return requireAuth(async function wrappedVendedor(req, res) {
     if (req.user.tipo !== 'vendedor') {
       return sendError(res, 'FORBIDDEN', 'Acesso restrito a vendedores', 403);
+    }
+    return handler(req, res);
+  });
+}
+
+export function requireInternalRole(handler, allowedRoles = ['operator', 'admin']) {
+  return requireAuth(async function wrappedInternalRole(req, res) {
+    if (!hasRole(req.user.role, allowedRoles)) {
+      return sendError(res, 'FORBIDDEN', 'Acesso restrito a operacao interna', 403);
     }
     return handler(req, res);
   });
