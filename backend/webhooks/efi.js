@@ -21,6 +21,7 @@ async function handler(req, res) {
   }
 
   try {
+    let webhookEventId = null;
     const payload = req.body || {};
     const providerChargeId = sanitizeString(payload.txid || payload.charge_id || payload.id);
     const eventType = sanitizeString(payload.event || payload.type || 'payment_status_changed');
@@ -30,22 +31,20 @@ async function handler(req, res) {
       return sendError(res, 'VALIDATION_ERROR', 'provider_charge_id ausente');
     }
 
-    const duplicate = await query(
-      `SELECT id FROM webhook_events
-       WHERE provider = 'efi' AND external_id = $1 AND event_type = $2
-       LIMIT 1`,
-      [providerChargeId, eventType]
-    );
-
-    if (duplicate.length > 0) {
-      return sendSuccess(res, { message: 'Evento ja processado' });
-    }
-
-    await query(
+    const eventInsert = await query(
       `INSERT INTO webhook_events (provider, event_type, external_id, payload_json, status)
-       VALUES ('efi', $1, $2, $3::jsonb, 'received')`,
+       VALUES ('efi', $1, $2, $3::jsonb, 'processing')
+       ON CONFLICT (provider, external_id, event_type)
+       WHERE external_id IS NOT NULL AND event_type IS NOT NULL
+       DO NOTHING
+       RETURNING id`,
       [eventType, providerChargeId, JSON.stringify(payload)]
     );
+
+    if (eventInsert.length === 0) {
+      return sendSuccess(res, { message: 'Evento ja processado' });
+    }
+    webhookEventId = eventInsert[0].id;
 
     const payments = await query(
       'SELECT id, order_id, status FROM payments WHERE provider = $1 AND provider_charge_id = $2 LIMIT 1',
@@ -92,15 +91,43 @@ async function handler(req, res) {
     await query(
       `UPDATE webhook_events
        SET status = 'processed', processed_at = CURRENT_TIMESTAMP
-       WHERE provider = 'efi' AND external_id = $1 AND event_type = $2`,
-      [providerChargeId, eventType]
+       WHERE id = $1`,
+      [webhookEventId]
     );
 
     return sendSuccess(res, { processed: true, providerChargeId, status });
   } catch (error) {
     if (error.code === 'INVALID_PAYMENT_STATUS_TRANSITION') {
-      return sendError(res, error.code, error.message);
+      try {
+        const payload = req.body || {};
+        const providerChargeId = sanitizeString(payload.txid || payload.charge_id || payload.id);
+        const eventType = sanitizeString(payload.event || payload.type || 'payment_status_changed');
+        await query(
+          `UPDATE webhook_events
+           SET status = 'ignored', processed_at = CURRENT_TIMESTAMP
+           WHERE provider = 'efi' AND external_id = $1 AND event_type = $2`,
+          [providerChargeId, eventType]
+        );
+      } catch (ignoredUpdateError) {
+        console.error('Erro ao marcar webhook ignorado:', ignoredUpdateError);
+      }
+      return sendSuccess(res, { processed: false, reason: error.code, message: error.message });
     }
+
+    try {
+      const payload = req.body || {};
+      const providerChargeId = sanitizeString(payload.txid || payload.charge_id || payload.id);
+      const eventType = sanitizeString(payload.event || payload.type || 'payment_status_changed');
+      await query(
+        `UPDATE webhook_events
+         SET status = 'failed', processed_at = CURRENT_TIMESTAMP
+         WHERE provider = 'efi' AND external_id = $1 AND event_type = $2`,
+        [providerChargeId, eventType]
+      );
+    } catch (failedUpdateError) {
+      console.error('Erro ao marcar webhook com falha:', failedUpdateError);
+    }
+
     console.error('Erro no webhook EFI:', error);
     return sendError(res, 'INTERNAL_ERROR', 'Erro ao processar webhook EFI', 500);
   }
