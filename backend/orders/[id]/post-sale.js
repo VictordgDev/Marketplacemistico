@@ -5,6 +5,7 @@ import { withCors } from '../../middleware.js';
 import { requireAuth } from '../../auth-middleware.js';
 import { normalizePaymentStatus } from '../../services/payments/payment-status-machine.js';
 import { processRefundForPayment } from '../../services/payments/refund-service.js';
+import { recordAuditLog } from '../../services/audit/audit-service.js';
 
 const CANCEL_ALLOWED_STATUSES = new Set(['pendente', 'confirmado']);
 const RETURN_ALLOWED_STATUSES = new Set(['entregue']);
@@ -130,6 +131,27 @@ async function handler(req, res) {
           JSON.stringify({ payment_status_before: order.payment_status })
         ]
       );
+
+      await recordAuditLog({
+        db: tx,
+        actorUserId: req.user.id,
+        action: `order.post_sale.${action}`,
+        resourceType: 'order',
+        resourceId: orderId,
+        before: {
+          status: previousStatus,
+          shipping_status: previousShippingStatus,
+          payment_status: order.payment_status
+        },
+        after: {
+          status: nextStatus,
+          shipping_status: nextShippingStatus
+        },
+        metadata: {
+          reason: reason || null,
+          refund_id: refund?.id || null
+        }
+      });
 
       const finalOrderResult = await tx.query(
         `SELECT id, status, shipping_status, payment_status

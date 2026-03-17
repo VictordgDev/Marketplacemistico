@@ -1,7 +1,8 @@
 ﻿import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../../backend/db.js', () => ({
-  withTransaction: jest.fn()
+  withTransaction: jest.fn(),
+  query: jest.fn()
 }));
 
 jest.unstable_mockModule('../../backend/services/finance/ledger-service.js', () => ({

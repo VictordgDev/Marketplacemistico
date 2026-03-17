@@ -1,7 +1,8 @@
 ﻿import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../../backend/db.js', () => ({
-  withTransaction: jest.fn()
+  withTransaction: jest.fn(),
+  query: jest.fn()
 }));
 
 jest.unstable_mockModule('../../backend/services/payments/refund-service.js', () => ({
@@ -52,6 +53,7 @@ describe('Order post-sale API', () => {
     tx.query.mockResolvedValueOnce({ rows: [] });
     tx.query.mockResolvedValueOnce({ rows: [{ id: 11, order_id: 50, provider: 'efi', provider_charge_id: 'ch_1', amount: '100.00', status: 'approved' }] });
     tx.query.mockResolvedValueOnce({ rows: [] });
+    tx.query.mockResolvedValueOnce({ rows: [] });
     tx.query.mockResolvedValueOnce({ rows: [{ id: 50, status: 'cancelado', shipping_status: 'cancelled', payment_status: 'refunded' }] });
 
     await handler(req, res);
@@ -75,6 +77,7 @@ describe('Order post-sale API', () => {
     tx.query.mockResolvedValueOnce({ rows: [{ id: 50, comprador_id: 101, status: 'entregue', shipping_status: 'delivered', payment_status: 'approved' }] });
     tx.query.mockResolvedValueOnce({ rows: [] });
     tx.query.mockResolvedValueOnce({ rows: [{ id: 11, order_id: 50, provider: 'efi', provider_charge_id: 'ch_1', amount: '100.00', status: 'approved' }] });
+    tx.query.mockResolvedValueOnce({ rows: [] });
     tx.query.mockResolvedValueOnce({ rows: [] });
     tx.query.mockResolvedValueOnce({ rows: [{ id: 50, status: 'devolvido', shipping_status: 'returned', payment_status: 'refunded' }] });
 

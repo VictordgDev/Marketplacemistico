@@ -5,6 +5,7 @@ import { withCors } from '../../middleware.js';
 import { requireInternalRole } from '../../auth-middleware.js';
 import { requireFinanceOpsSecret } from '../../finance/ops-auth.js';
 import { recordManualPayoutLedgerEntry } from '../../services/finance/ledger-service.js';
+import { recordAuditLog } from '../../services/audit/audit-service.js';
 
 const ACTION_TRANSITIONS = {
   approve: {
@@ -144,6 +145,28 @@ async function handler(req, res) {
           amount: Number(payout.amount || 0)
         });
       }
+
+      await recordAuditLog({
+        db: tx,
+        actorUserId: req.user.id,
+        action: `manual_payout.${action}`,
+        resourceType: 'manual_payout',
+        resourceId: payout.id,
+        before: {
+          status: payout.status,
+          external_reference: payout.external_reference,
+          proof_url: payout.proof_url
+        },
+        after: {
+          status: updatedPayout.status,
+          external_reference: updatedPayout.external_reference,
+          proof_url: updatedPayout.proof_url
+        },
+        metadata: {
+          reason: reason || null,
+          action_log_id: actionLogResult.rows[0]?.id || null
+        }
+      });
 
       return {
         payout: updatedPayout,

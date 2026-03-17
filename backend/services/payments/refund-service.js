@@ -4,6 +4,7 @@ import {
   normalizePaymentStatus
 } from './payment-status-machine.js';
 import { recordRefundLedgerEntry } from '../finance/ledger-service.js';
+import { recordAuditLog } from '../audit/audit-service.js';
 
 function createBusinessError(code, message) {
   const error = new Error(message);
@@ -137,6 +138,26 @@ export async function processRefundForPayment({
 
     finalPaymentStatus = nextPaymentStatus;
   }
+
+  await recordAuditLog({
+    db: tx,
+    actorUserId: requestedByUserId,
+    action: 'refund.created',
+    resourceType: 'refund',
+    resourceId: refundInsert.rows[0].id,
+    before: {
+      payment_status: currentStatus
+    },
+    after: {
+      payment_status: finalPaymentStatus,
+      refund_status: persistedStatus,
+      refund_amount: amountToRefund
+    },
+    metadata: {
+      payment_id: payment.id,
+      order_id: payment.order_id
+    }
+  });
 
   return {
     refund: refundInsert.rows[0],
