@@ -17,6 +17,7 @@ export const routes = [
   { pattern: '/api/orders', load: () => import('./orders/index.js') },
   { pattern: '/api/payments/create', load: () => import('./payments/create.js') },
   { pattern: '/api/payments/refund', load: () => import('./payments/refund.js') },
+  { pattern: '/api/finance/ledger/:orderId', load: () => import('./finance/ledger/[orderId].js') },
   { pattern: '/api/shipping/quote', load: () => import('./shipping/quote.js') },
   { pattern: '/api/webhooks/efi/reprocess', load: () => import('./webhooks/efi/reprocess.js') },
   { pattern: '/api/webhooks/efi/retry', load: () => import('./webhooks/efi/retry.js') },

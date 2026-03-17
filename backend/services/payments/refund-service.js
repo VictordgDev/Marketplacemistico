@@ -3,6 +3,7 @@ import {
   assertPaymentStatusTransition,
   normalizePaymentStatus
 } from './payment-status-machine.js';
+import { recordRefundLedgerEntry } from '../finance/ledger-service.js';
 
 function createBusinessError(code, message) {
   const error = new Error(message);
@@ -125,6 +126,14 @@ export async function processRefundForPayment({
        WHERE id = $1`,
       [payment.order_id, nextPaymentStatus]
     );
+
+    await recordRefundLedgerEntry({
+      db: tx,
+      orderId: payment.order_id,
+      paymentId: payment.id,
+      refundId: refundInsert.rows[0].id,
+      amount: amountToRefund
+    });
 
     finalPaymentStatus = nextPaymentStatus;
   }

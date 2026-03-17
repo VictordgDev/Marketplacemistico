@@ -5,6 +5,7 @@ import { withCors } from '../middleware.js';
 import { requireAuth } from '../auth-middleware.js';
 import { createEfiCharge } from '../services/payments/efi-service.js';
 import { normalizePaymentStatus } from '../services/payments/payment-status-machine.js';
+import { recordPaymentLedgerEntries } from '../services/finance/ledger-service.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -94,6 +95,17 @@ async function handler(req, res) {
         normalizedStatus === 'approved' ? 'ready' : 'pending'
       ]
     );
+
+    if (normalizedStatus === 'approved') {
+      await recordPaymentLedgerEntries({
+        orderId: orderId,
+        paymentId: payment.id,
+        grossAmount: amount,
+        platformFeeAmount,
+        sellerNetAmount,
+        splitMode: charge.splitMode
+      });
+    }
 
     if (charge.splitMode === 'manual') {
       await query(
