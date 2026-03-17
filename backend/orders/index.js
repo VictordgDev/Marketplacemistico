@@ -1,4 +1,4 @@
-import { query } from '../db.js';
+import { query, withTransaction } from '../db.js';
 import { sanitizeInteger, sanitizeNumber } from '../sanitize.js';
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
@@ -127,72 +127,80 @@ async function handler(req, res) {
       const grandTotal = Math.max(0, itemsSubtotal + safeShippingTotal - safeDiscountTotal);
       const shippingQuoteId = sanitizeInteger(shipping_quote_id);
 
-      const orderResult = await query(
-        `INSERT INTO orders (
-           comprador_id, vendedor_id, total, items_subtotal, shipping_total, discount_total,
-           grand_total, status, payment_status, shipping_status, selected_shipping_quote_id,
-           shipping_address_snapshot_json, billing_address_snapshot_json
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendente', 'pending', 'pending', $8, $9, $10)
-         RETURNING id`,
-        [
-          req.user.id,
-          sellerId,
-          grandTotal,
-          itemsSubtotal,
-          safeShippingTotal,
-          safeDiscountTotal,
-          grandTotal,
-          shippingQuoteId,
-          shipping_address_snapshot ? JSON.stringify(shipping_address_snapshot) : null,
-          billing_address_snapshot ? JSON.stringify(billing_address_snapshot) : null
-        ]
-      );
-      const orderId = orderResult[0].id;
-
-      for (const item of orderItems) {
-        await query(
-          `INSERT INTO order_items (
-             order_id, seller_id, product_id, quantidade, preco_unitario,
-             unit_price, name_snapshot, weight_snapshot, dimension_snapshot_json
+      const order = await withTransaction(async (tx) => {
+        const orderInsert = await tx.query(
+          `INSERT INTO orders (
+             comprador_id, vendedor_id, total, items_subtotal, shipping_total, discount_total,
+             grand_total, status, payment_status, shipping_status, selected_shipping_quote_id,
+             shipping_address_snapshot_json, billing_address_snapshot_json
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendente', 'pending', 'pending', $8, $9, $10)
+           RETURNING id`,
           [
-            orderId,
+            req.user.id,
             sellerId,
-            item.product.id,
-            item.quantidade,
-            item.preco,
-            item.preco,
-            item.nameSnapshot,
-            item.weightSnapshot,
-            JSON.stringify(item.dimensionSnapshot)
+            grandTotal,
+            itemsSubtotal,
+            safeShippingTotal,
+            safeDiscountTotal,
+            grandTotal,
+            shippingQuoteId,
+            shipping_address_snapshot ? JSON.stringify(shipping_address_snapshot) : null,
+            billing_address_snapshot ? JSON.stringify(billing_address_snapshot) : null
           ]
         );
+        const orderId = orderInsert.rows[0].id;
 
-        await query(
-          'UPDATE products SET estoque = estoque - $1 WHERE id = $2',
-          [item.quantidade, item.product.id]
+        for (const item of orderItems) {
+          await tx.query(
+            `INSERT INTO order_items (
+               order_id, seller_id, product_id, quantidade, preco_unitario,
+               unit_price, name_snapshot, weight_snapshot, dimension_snapshot_json
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              orderId,
+              sellerId,
+              item.product.id,
+              item.quantidade,
+              item.preco,
+              item.preco,
+              item.nameSnapshot,
+              item.weightSnapshot,
+              JSON.stringify(item.dimensionSnapshot)
+            ]
+          );
+
+          const stockUpdate = await tx.query(
+            'UPDATE products SET estoque = estoque - $1 WHERE id = $2 AND estoque >= $1',
+            [item.quantidade, item.product.id]
+          );
+
+          if (stockUpdate.rowCount === 0) {
+            throw Object.assign(new Error(`Estoque insuficiente para produto ${item.product.id}`), { code: 'INSUFFICIENT_STOCK' });
+          }
+        }
+
+        const orderQuery = await tx.query(
+          `SELECT o.*, array_agg(json_build_object(
+             'product_id', oi.product_id,
+             'quantidade', oi.quantidade,
+             'preco_unitario', oi.preco_unitario,
+             'name_snapshot', oi.name_snapshot,
+             'weight_snapshot', oi.weight_snapshot,
+             'dimension_snapshot_json', oi.dimension_snapshot_json
+           )) as items
+           FROM orders o
+           JOIN order_items oi ON o.id = oi.order_id
+           WHERE o.id = $1
+           GROUP BY o.id`,
+          [orderId]
         );
-      }
 
-      const order = await query(
-        `SELECT o.*, array_agg(json_build_object(
-           'product_id', oi.product_id,
-           'quantidade', oi.quantidade,
-           'preco_unitario', oi.preco_unitario,
-           'name_snapshot', oi.name_snapshot,
-           'weight_snapshot', oi.weight_snapshot,
-           'dimension_snapshot_json', oi.dimension_snapshot_json
-         )) as items
-         FROM orders o
-         JOIN order_items oi ON o.id = oi.order_id
-         WHERE o.id = $1
-         GROUP BY o.id`,
-        [orderId]
-      );
+        return orderQuery.rows[0];
+      });
 
-      return sendSuccess(res, { order: order[0] }, 201);
+      return sendSuccess(res, { order }, 201);
     } catch (error) {
       if (
         error.code === 'PRODUCT_UNAVAILABLE' ||

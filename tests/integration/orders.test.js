@@ -2,7 +2,8 @@ import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../../backend/db.js', () => ({
   query: jest.fn(),
-  getDb: jest.fn()
+  getDb: jest.fn(),
+  withTransaction: jest.fn()
 }));
 
 // Mocking requireAuth to bypass JWT validation in integration tests
@@ -16,14 +17,19 @@ jest.unstable_mockModule('../../backend/auth-middleware.js', () => ({
   }
 }));
 
-const { query } = await import('../../backend/db.js');
+const { query, withTransaction } = await import('../../backend/db.js');
 const { default: handler } = await import('../../backend/orders/index.js');
 
 describe('Orders API', () => {
-  let req, res;
+  let req, res, tx;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    tx = {
+      query: jest.fn()
+    };
+    withTransaction.mockImplementation(async (callback) => callback(tx));
+
     res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
@@ -48,10 +54,10 @@ describe('Orders API', () => {
     query.mockResolvedValueOnce([
       { id: 1, preco: 50.00, estoque: 10, seller_id: 1, publicado: true, seller_user_id: 20 }
     ]);
-    query.mockResolvedValueOnce([{ id: 100 }]);
-    query.mockResolvedValueOnce({});
-    query.mockResolvedValueOnce({});
-    query.mockResolvedValueOnce([{ id: 100, total: 100.00, status: 'pendente', items: [] }]);
+    tx.query.mockResolvedValueOnce({ rows: [{ id: 100 }], rowCount: 1 });
+    tx.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    tx.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    tx.query.mockResolvedValueOnce({ rows: [{ id: 100, total: 100.00, status: 'pendente', items: [] }], rowCount: 1 });
 
     await handler(req, res);
 
@@ -92,5 +98,28 @@ describe('Orders API', () => {
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('should return error if stock changes during transactional update', async () => {
+    req.method = 'POST';
+    req.body = {
+      items: [{ product_id: 1, quantidade: 2 }],
+      address_id: 5
+    };
+
+    query.mockResolvedValueOnce([
+      { id: 1, preco: 50.00, estoque: 10, seller_id: 1, publicado: true, seller_user_id: 20 }
+    ]);
+
+    tx.query.mockResolvedValueOnce({ rows: [{ id: 100 }], rowCount: 1 });
+    tx.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    tx.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({ code: 'INSUFFICIENT_STOCK' })
+    }));
   });
 });
