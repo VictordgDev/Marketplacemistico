@@ -1,4 +1,5 @@
 node_modules/
+# Local environment secrets (never commit real values)
 .env
 .env.local
 .env.*.local
