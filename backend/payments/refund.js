@@ -3,11 +3,7 @@ import { sanitizeInteger, sanitizeNumber, sanitizeString } from '../sanitize.js'
 import { sendSuccess, sendError } from '../response.js';
 import { withCors } from '../middleware.js';
 import { requireAuth } from '../auth-middleware.js';
-import { createEfiRefund } from '../services/payments/efi-service.js';
-import {
-  assertPaymentStatusTransition,
-  normalizePaymentStatus
-} from '../services/payments/payment-status-machine.js';
+import { processRefundForPayment } from '../services/payments/refund-service.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -32,9 +28,7 @@ async function handler(req, res) {
 
   try {
     const result = await withTransaction(async (tx) => {
-      const selector = paymentId
-        ? 'p.id = $1'
-        : 'p.order_id = $1';
+      const selector = paymentId ? 'p.id = $1' : 'p.order_id = $1';
 
       const paymentResult = await tx.query(
         `SELECT p.id, p.order_id, p.provider, p.provider_charge_id, p.amount, p.status,
@@ -56,132 +50,24 @@ async function handler(req, res) {
       }
 
       const payment = paymentResult.rows[0];
-      const paymentAmount = Number(payment.amount || 0);
-      const currentStatus = normalizePaymentStatus(payment.status);
-
-      if (!['approved', 'partially_refunded'].includes(currentStatus)) {
-        const error = new Error('Pagamento sem saldo para refund');
-        error.code = 'INVALID_PAYMENT_STATUS';
-        throw error;
-      }
-
-      const refundedRows = await tx.query(
-        `SELECT COALESCE(SUM(amount), 0) AS refunded_total
-         FROM refunds
-         WHERE payment_id = $1
-           AND status = 'processed'`,
-        [payment.id]
-      );
-      const refundedTotal = Number(refundedRows.rows[0]?.refunded_total || 0);
-      const refundable = Number((paymentAmount - refundedTotal).toFixed(2));
-
-      if (refundable <= 0) {
-        const error = new Error('Nao existe saldo reembolsavel');
-        error.code = 'NO_REFUNDABLE_BALANCE';
-        throw error;
-      }
-
-      const amountToRefund = Number((requestedAmount ?? refundable).toFixed(2));
-      if (amountToRefund <= 0) {
-        const error = new Error('Valor de refund invalido');
-        error.code = 'INVALID_REFUND_AMOUNT';
-        throw error;
-      }
-
-      if (amountToRefund - refundable > 0.009) {
-        const error = new Error('Valor solicitado excede o saldo reembolsavel');
-        error.code = 'REFUND_AMOUNT_EXCEEDS_BALANCE';
-        throw error;
-      }
-
-      if (!payment.provider_charge_id) {
-        const error = new Error('provider_charge_id ausente para refund');
-        error.code = 'VALIDATION_ERROR';
-        throw error;
-      }
-
-      if (payment.provider !== 'efi') {
-        const error = new Error('No MVP, refund disponivel apenas para provider EFI');
-        error.code = 'UNSUPPORTED_PROVIDER';
-        throw error;
-      }
-
-      const providerRefund = await createEfiRefund({
-        providerChargeId: payment.provider_charge_id,
-        amount: amountToRefund,
-        reason
+      const refundResult = await processRefundForPayment({
+        tx,
+        payment,
+        requestedAmount,
+        reason,
+        requestedByUserId: req.user.id
       });
 
-      const refundStatus = sanitizeString(providerRefund.status || '').toLowerCase();
-      const persistedStatus = ['processed', 'pending'].includes(refundStatus)
-        ? refundStatus
-        : 'processed';
-
-      const refundInsert = await tx.query(
-        `INSERT INTO refunds (
-           payment_id, order_id, provider, provider_refund_id, amount,
-           reason, status, raw_response_json, requested_by_user_id,
-           processed_at, updated_at
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9,
-                 CASE WHEN $7 = 'processed' THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP)
-         RETURNING *`,
-        [
-          payment.id,
-          payment.order_id,
-          payment.provider,
-          providerRefund.providerRefundId || providerRefund.refundReference,
-          amountToRefund,
-          reason,
-          persistedStatus,
-          JSON.stringify(providerRefund.raw || {}),
-          req.user.id
-        ]
-      );
-
-      if (persistedStatus === 'processed') {
-        const remainingAfter = Number((refundable - amountToRefund).toFixed(2));
-        const nextPaymentStatus = remainingAfter <= 0 ? 'refunded' : 'partially_refunded';
-
-        assertPaymentStatusTransition(currentStatus, nextPaymentStatus);
-
-        await tx.query(
-          `UPDATE payments
-           SET status = $2,
-               updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
-          [payment.id, nextPaymentStatus]
-        );
-
-        await tx.query(
-          `UPDATE orders
-           SET payment_status = $2,
-               status = CASE
-                 WHEN $2 = 'refunded' AND status <> 'entregue' THEN 'cancelado'
-                 ELSE status
-               END
-           WHERE id = $1`,
-          [payment.order_id, nextPaymentStatus]
-        );
-      }
-
-      const refundableAfter = Number((refundable - amountToRefund).toFixed(2));
-      const finalPaymentStatus =
-        persistedStatus === 'processed'
-          ? (refundableAfter <= 0 ? 'refunded' : 'partially_refunded')
-          : currentStatus;
-
       return {
-        refund: refundInsert.rows[0],
+        refund: refundResult.refund,
         payment: {
           id: payment.id,
           order_id: payment.order_id,
-          status: finalPaymentStatus
+          status: refundResult.paymentStatus
         },
-        refundable_before: refundable,
-        refundable_after: refundableAfter,
-        provider: providerRefund
+        refundable_before: refundResult.refundableBefore,
+        refundable_after: refundResult.refundableAfter,
+        provider: refundResult.provider
       };
     });
 

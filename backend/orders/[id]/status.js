@@ -4,7 +4,7 @@ import { sendSuccess, sendError } from '../../response.js';
 import { withCors } from '../../middleware.js';
 import { requireAuth } from '../../auth-middleware.js';
 
-const VALID_STATUSES = ['pendente', 'confirmado', 'enviado', 'entregue', 'cancelado'];
+const VALID_STATUSES = ['pendente', 'confirmado', 'enviado', 'entregue', 'cancelado', 'devolvido'];
 
 async function handler(req, res) {
   if (req.method !== 'PATCH') {

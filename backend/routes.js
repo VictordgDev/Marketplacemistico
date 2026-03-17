@@ -11,6 +11,7 @@ export const routes = [
   { pattern: '/api/auth/register', load: () => import('./auth/register.js') },
   { pattern: '/api/auth/callback/google', load: () => import('./auth/callback/google.js') },
 
+  { pattern: '/api/orders/:id/post-sale', load: () => import('./orders/[id]/post-sale.js') },
   { pattern: '/api/orders/:id/status', load: () => import('./orders/[id]/status.js') },
   { pattern: '/api/orders/:id', load: () => import('./orders/[id].js') },
   { pattern: '/api/orders', load: () => import('./orders/index.js') },

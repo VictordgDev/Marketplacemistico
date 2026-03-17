@@ -4,8 +4,8 @@ jest.unstable_mockModule('../../backend/db.js', () => ({
   withTransaction: jest.fn()
 }));
 
-jest.unstable_mockModule('../../backend/services/payments/efi-service.js', () => ({
-  createEfiRefund: jest.fn()
+jest.unstable_mockModule('../../backend/services/payments/refund-service.js', () => ({
+  processRefundForPayment: jest.fn()
 }));
 
 jest.unstable_mockModule('../../backend/auth-middleware.js', () => ({
@@ -16,7 +16,7 @@ jest.unstable_mockModule('../../backend/auth-middleware.js', () => ({
 }));
 
 const { withTransaction } = await import('../../backend/db.js');
-const { createEfiRefund } = await import('../../backend/services/payments/efi-service.js');
+const { processRefundForPayment } = await import('../../backend/services/payments/refund-service.js');
 const { default: handler } = await import('../../backend/payments/refund.js');
 
 describe('Payments refund API', () => {
@@ -45,14 +45,7 @@ describe('Payments refund API', () => {
     };
   });
 
-  test('creates full refund and updates payment/order statuses', async () => {
-    createEfiRefund.mockResolvedValue({
-      providerRefundId: 'rf_abc',
-      refundReference: 'refund_1',
-      status: 'processed',
-      raw: { ok: true }
-    });
-
+  test('creates refund through shared refund service', async () => {
     tx.query.mockResolvedValueOnce({
       rows: [{
         id: 10,
@@ -65,30 +58,27 @@ describe('Payments refund API', () => {
         vendedor_id: 5
       }]
     });
-    tx.query.mockResolvedValueOnce({ rows: [{ refunded_total: '0.00' }] });
-    tx.query.mockResolvedValueOnce({ rows: [{ id: 1, amount: '100.00', status: 'processed' }] });
-    tx.query.mockResolvedValueOnce({ rows: [] });
-    tx.query.mockResolvedValueOnce({ rows: [] });
+
+    processRefundForPayment.mockResolvedValue({
+      refund: { id: 1 },
+      paymentStatus: 'refunded',
+      refundableBefore: 100,
+      refundableAfter: 0,
+      provider: { providerRefundId: 'rf_1' }
+    });
 
     await handler(req, res);
 
-    expect(createEfiRefund).toHaveBeenCalledWith(expect.objectContaining({
-      providerChargeId: 'ch_123',
-      amount: 100
+    expect(processRefundForPayment).toHaveBeenCalledWith(expect.objectContaining({
+      requestedAmount: null,
+      requestedByUserId: 22
     }));
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test('creates partial refund when amount is lower than refundable balance', async () => {
+  test('passes partial amount to refund service', async () => {
     req.body = { payment_id: 10, amount: 30 };
 
-    createEfiRefund.mockResolvedValue({
-      providerRefundId: 'rf_partial',
-      refundReference: 'refund_partial',
-      status: 'processed',
-      raw: { ok: true }
-    });
-
     tx.query.mockResolvedValueOnce({
       rows: [{
         id: 10,
@@ -101,29 +91,24 @@ describe('Payments refund API', () => {
         vendedor_id: 5
       }]
     });
-    tx.query.mockResolvedValueOnce({ rows: [{ refunded_total: '0.00' }] });
-    tx.query.mockResolvedValueOnce({ rows: [{ id: 2, amount: '30.00', status: 'processed' }] });
-    tx.query.mockResolvedValueOnce({ rows: [] });
-    tx.query.mockResolvedValueOnce({ rows: [] });
+
+    processRefundForPayment.mockResolvedValue({
+      refund: { id: 2 },
+      paymentStatus: 'partially_refunded',
+      refundableBefore: 100,
+      refundableAfter: 70,
+      provider: { providerRefundId: 'rf_2' }
+    });
 
     await handler(req, res);
 
-    expect(createEfiRefund).toHaveBeenCalledWith(expect.objectContaining({
-      providerChargeId: 'ch_123',
-      amount: 30
+    expect(processRefundForPayment).toHaveBeenCalledWith(expect.objectContaining({
+      requestedAmount: 30
     }));
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      data: expect.objectContaining({
-        payment: expect.objectContaining({ status: 'partially_refunded' }),
-        refundable_before: 100,
-        refundable_after: 70
-      })
-    }));
   });
 
-  test('blocks refund when amount exceeds refundable balance', async () => {
+  test('returns business error from refund service', async () => {
     req.body = { payment_id: 10, amount: 90 };
 
     tx.query.mockResolvedValueOnce({
@@ -138,7 +123,10 @@ describe('Payments refund API', () => {
         vendedor_id: 5
       }]
     });
-    tx.query.mockResolvedValueOnce({ rows: [{ refunded_total: '20.00' }] });
+
+    const error = new Error('Valor solicitado excede o saldo reembolsavel');
+    error.code = 'REFUND_AMOUNT_EXCEEDS_BALANCE';
+    processRefundForPayment.mockRejectedValue(error);
 
     await handler(req, res);
 
@@ -149,43 +137,11 @@ describe('Payments refund API', () => {
     }));
   });
 
-  test('marks payment as refunded when cumulative partial refunds reach total', async () => {
-    req.body = { payment_id: 10, amount: 30 };
-
-    createEfiRefund.mockResolvedValue({
-      providerRefundId: 'rf_last',
-      refundReference: 'refund_last',
-      status: 'processed',
-      raw: { ok: true }
-    });
-
-    tx.query.mockResolvedValueOnce({
-      rows: [{
-        id: 10,
-        order_id: 99,
-        provider: 'efi',
-        provider_charge_id: 'ch_123',
-        amount: '100.00',
-        status: 'partially_refunded',
-        comprador_id: 22,
-        vendedor_id: 5
-      }]
-    });
-    tx.query.mockResolvedValueOnce({ rows: [{ refunded_total: '70.00' }] });
-    tx.query.mockResolvedValueOnce({ rows: [{ id: 3, amount: '30.00', status: 'processed' }] });
-    tx.query.mockResolvedValueOnce({ rows: [] });
+  test('returns 404 when payment is not found', async () => {
     tx.query.mockResolvedValueOnce({ rows: [] });
 
     await handler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      data: expect.objectContaining({
-        payment: expect.objectContaining({ status: 'refunded' }),
-        refundable_before: 30,
-        refundable_after: 0
-      })
-    }));
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 });
