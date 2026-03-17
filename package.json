@@ -7,7 +7,9 @@
     "dev": "vercel dev",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
-    "audit": "npm audit"
+    "audit": "npm audit",
+    "db:migrate": "node scripts/migrate.js up",
+    "db:rollback": "node scripts/migrate.js down"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",

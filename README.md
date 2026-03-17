@@ -92,10 +92,14 @@ DATABASE_URL=sua_connection_string_postgresql
 JWT_SECRET=sua_chave_secreta_jwt
 ```
 
-4. Execute o schema SQL no seu banco de dados:
+4. Aplique as migrações no seu banco de dados:
 ```bash
-# Execute o arquivo schema.sql no seu banco PostgreSQL
-psql -U seu_usuario -d seu_banco -f schema.sql
+npm run db:migrate
+```
+
+Rollback da última migração (quando necessário):
+```bash
+npm run db:rollback
 ```
 
 5. Inicie o servidor de desenvolvimento:
@@ -146,7 +150,9 @@ Marketplacemistico/
 │   ├── app.js                # Lógica JavaScript
 │   ├── style.css             # Estilos
 │   └── favicon.svg           # Ícone do site
-├── schema.sql                # Schema do banco de dados
+├── migrations/              # Migrações SQL incrementais (up/down)
+├── scripts/migrate.js       # Runner de migrações e rollback
+├── schema.sql               # Snapshot legado do schema (não usar como fluxo principal)
 ├── vercel.json               # Configuração Vercel
 └── package.json              # Dependências do projeto
 ```
